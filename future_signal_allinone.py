@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (AUTO MODE OTC ONLY)
+👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
 - Dynamic Best-Pair Selector & Neural Trend Engine Active
-- Full 9-Command Admin Suite & Maintenance Control System
+- Full Multi-Market Support: Quotex OTC, Pocket Option OTC & Real Market
+- Schedule History, Edit & Save Feature Added
+- Fixed Keep-Alive Response Size for Cron-Job.org Compatibility
 """
 
 import os
@@ -25,7 +27,7 @@ class RenderHealthServer(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        self.wfile.write(b"MD SUMON TRADING BOT is LIVE and Healthy!")
+        self.wfile.write(b"OK")
 
     def log_message(self, format, *args):
         return
@@ -49,6 +51,7 @@ HISTORY_FILE = "daily_history.json"
 USER_SETTINGS_FILE = "user_settings.json"
 USERS_FILE = "authorized_users.json"
 SCHEDULE_USERS_FILE = "schedule_authorized_users.json"
+SCHEDULE_SAVED_FILE = "saved_schedules.json"
 USAGE_FILE = "daily_usage.json"
 ACTIVE_BATCHES_FILE = "active_batches.json"
 BOT_CONFIG_FILE = "bot_config.json"
@@ -65,8 +68,18 @@ QUOTEX_OTC_ASSETS = [
     "USDEGP_otc"
 ]
 
-POCKET_OTC_ASSETS = [
-    "EURUSD_otc", "GBPUSD_otc", "USDJPY_otc", "AUDUSD_otc", "USDCAD_otc"
+POCKET_OPTION_OTC_ASSETS = [
+    "AUDCAD_otc", "AUDCHF_otc", "AUDJPY_otc", "AUDNZD_otc", "AUDUSD_otc",
+    "CARDAN_otc", "ALISTK_otc", "BHDCNY_otc", "BTCETF_otc", "CADCHF_otc",
+    "CADJPY_otc", "CHFJPY_otc", "CHFNOK_otc", "CITSTK_otc", "DOGEUS_otc",
+    "EURCHF_otc", "EURGBP_otc", "EURHUF_otc", "EURJPY_otc", "EURNZD_otc",
+    "EURRUB_otc", "EURTRY_otc", "EURUSD_otc", "GBPAUD_otc", "GBPJPY_otc",
+    "GBPUSD_otc", "CHAINLINK_otc", "NETFLIX_otc", "NZDJPY_otc", "NZDUSD_otc",
+    "TWITTER_otc", "USDBDT_otc", "USDCAD_otc", "USDCHF_otc", "USDCLP_otc",
+    "USDCNH_otc", "USDCOP_otc", "USDEGP_otc", "USDIDR_otc", "USDINR_otc",
+    "USDJPY_otc", "USDMYR_otc", "USDPHP_otc", "USDPKR_otc", "USDRUB_otc",
+    "USDTHB_otc", "USDVND_otc", "VISA_otc", "APPLE_otc", "AMERICAN EXPRESS_otc",
+    "BOI_otc", "FACEBOOK_otc", "INTEL_otc", "MCDONALDS_otc", "MICROSOFT_otc", "PIZFER_otc"
 ]
 
 LIVE_REAL_PAIRS = [
@@ -157,6 +170,19 @@ def has_schedule_access(chat_id, username=None):
     u_name = str(username).lower().strip("@") if username else ""
     return c_id in sched_users or (u_name and u_name in sched_users)
 
+# ================= SCHEDULE STORAGE & MANAGEMENT =================
+def load_saved_schedules(chat_id):
+    data = load_json(SCHEDULE_SAVED_FILE)
+    return data.get(str(chat_id), [])
+
+def save_user_schedule(chat_id, schedule_data):
+    data = load_json(SCHEDULE_SAVED_FILE)
+    c_id = str(chat_id)
+    if c_id not in data:
+        data[c_id] = []
+    data[c_id].append(schedule_data)
+    save_json(SCHEDULE_SAVED_FILE, data)
+
 # ================= XCHARTS LIVE DATA FETCHER =================
 XCHARTS_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
@@ -240,7 +266,7 @@ def analyze_best_pair_and_trend(pair_pool):
     best_pair = shuffled_pool[0]
     best_score = -999.0
     best_dir = "CALL"
-    best_tag = "SUMON OTC PRO + Neural Flow"
+    best_tag = "Neural Bullish Trend + Quantum Flow"
 
     candidates_checked = 0
     for p in shuffled_pool:
@@ -273,10 +299,10 @@ def analyze_best_pair_and_trend(pair_pool):
             best_pair = p
             if ema7[-1] >= ema21[-1]:
                 best_dir = "CALL"
-                best_tag = "SUMON OTC PRO + Bullish Flow"
+                best_tag = "Neural Bullish Trend + Quantum Flow"
             else:
                 best_dir = "PUT"
-                best_tag = "SUMON OTC PRO + Bearish Flow"
+                best_tag = "Neural Bearish Trend + Quantum Flow"
 
     confidence = random.randint(96, 99)
     return best_pair, best_dir, confidence, best_tag
@@ -561,7 +587,7 @@ def build_partial_scoreboard_text(chat_id, user_tz):
         
     win_rate = int((wins / total) * 100) if total > 0 else 0
     return (
-        f"<blockquote>========== PARTIAL ==========\n\n"
+        f"========== PARTIAL ==========\n\n"
         f"────────── . ──────────\n"
         f" 🗓 - {now_str}\n"
         f"────────── . ──────────\n"
@@ -573,27 +599,27 @@ def build_partial_scoreboard_text(chat_id, user_tz):
         f"🏆 Win : {wins} ┃ Loss : {losses} ┃ ◈ ({win_rate}%)\n"
         f"────────── . ──────────\n"
         f"✅ Partial Sent Successfully\n"
-        f"────────── . ──────────</blockquote>"
+        f"────────── . ──────────"
     )
 
 # ================= LUXURY VIP CARD BUILDERS =================
 def build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag):
     return (
-        f"<blockquote>👑 <b>{BOT_TITLE}</b> 👑\n"
+        f"👑 <b>{BOT_TITLE}</b> 👑\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"📊 ASSET: <code>{clean_pair}</code>\n"
         f"🎯 CONFIDENCE: <code>{confidence}% Ultra-High</code>\n"
         f"🧠 ENGINE: <code>{algorithm_tag}</code>\n"
         f"🌐 ZONE: <code>{tz_str} (Live Sync)</code>\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⏳ <i>Locking best entry point...</i></blockquote>"
+        f"⏳ <i>Locking best entry point...</i>"
     )
 
 def build_execution_ticket_card(clean_pair, dir_action, entry_str):
     action_text = "CALL ▲ (BUY UP)" if dir_action == "CALL" else "PUT ▼ (SELL DOWN)"
     dir_emoji = "🟢" if dir_action == "CALL" else "🔴"
     return (
-        f"<blockquote>👑 <b>{BOT_TITLE}</b> 👑\n"
+        f"👑 <b>{BOT_TITLE}</b> 👑\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"📊 ASSET: <code>{clean_pair}</code>\n"
         f"{dir_emoji} ACTION: <b>{action_text}</b>\n"
@@ -601,7 +627,7 @@ def build_execution_ticket_card(clean_pair, dir_action, entry_str):
         f"⌛ EXPIRY: <b>1 MINUTE</b>\n"
         f"🛡 STRATEGY: <b>MAX 1-STEP MTG</b>\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⚠️ <i>Wait for exact 00-second candle open</i></blockquote>"
+        f"⚠️ <i>Wait for exact 00-second candle open</i>"
     )
 
 def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins, losses, win_rate):
@@ -621,10 +647,10 @@ def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins
         mtg_status = "<code>FAILED</code>"
 
     return (
-        f"<blockquote>👑 <b>{BOT_TITLE}</b> 👑\n"
+        f"👑 <b>{BOT_TITLE}</b> 👑\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"🏆 <b>OFFICIAL RESULT UPDATE</b> 🏆\n\n"
-        f"🏛 <b>Broker:</b> <code>QUOTEX OTC</code>\n"
+        f"🏛 <b>Market:</b> <code>LIVE / OTC DIRECT</code>\n"
         f"🪙 <b>Asset:</b> <code>{clean_pair}</code>\n"
         f"🎯 <b>Trade:</b> {trade_call_text}\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
@@ -636,12 +662,12 @@ def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins
         f"🎯 <b>ACCURACY:</b> <b>({win_rate:.1f}%)</b>\n"
         f"✈️ <b>TELEGRAM:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+        f"👑 <b>{BOT_TITLE} VIP</b> 👑"
     )
 
 def build_maintenance_card():
     return (
-        "<blockquote>🛠 <b>SYSTEM UNDER MAINTENANCE</b> 🛠\n"
+        "🛠 <b>SYSTEM UNDER MAINTENANCE</b> 🛠\n"
         "━━━━━━━━━━━━━━━━━━━\n"
         "🔒 <b>Access Status:</b> <code>Temporarily Locked</code>\n"
         "⚙️ <b>Reason:</b> <code>System Optimization & Algorithm Update</code>\n"
@@ -649,12 +675,12 @@ def build_maintenance_card():
         "━━━━━━━━━━━━━━━━━━━\n"
         "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n\n"
         f"💬 <b>Admin Support:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
-        f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+        f"👑 <b>{BOT_TITLE} VIP</b> 👑"
     )
 
 def build_vip_activated_notification_card():
     return (
-        "<blockquote>👑 <b>VIP ACCESS ACTIVATED!</b> 👑\n"
+        "👑 <b>VIP ACCESS ACTIVATED!</b> 👑\n"
         "━━━━━━━━━━━━━━━━━━━\n"
         "🎉 <b>Congratulations!</b> Your account has been upgraded to <b>VIP ACCESS</b>.\n\n"
         "💎 <b>UNLOCKED PRIVILEGES:</b>\n"
@@ -664,11 +690,11 @@ def build_vip_activated_notification_card():
         "• 🛡 <b>Full Martingale Risk Protection</b>\n"
         "━━━━━━━━━━━━━━━━━━━\n"
         "🚀 Press /start to launch your Unlimited VIP Trading Desk!\n"
-        f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+        f"👑 <b>{BOT_TITLE} VIP</b> 👑"
     )
 
 # ================= AUTO SIGNAL DISPATCHER =================
-def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=False):
+def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=False, broker_type="quotex"):
     user_tz, tz_offset = get_user_tz(chat_id)
     now_dt = datetime.now(user_tz)
     
@@ -677,14 +703,15 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
         
     entry_dt = (now_dt + timedelta(minutes=1)).replace(second=0, microsecond=0)
     
-    st = session_state.get(str(chat_id), {})
-    broker_key = st.get("auto_broker", "quotex")
-    if broker_key == "real":
-        pool = LIVE_REAL_PAIRS
-    elif broker_key == "pocket":
-        pool = POCKET_OTC_ASSETS
+    if pair:
+        pool = [pair]
     else:
-        pool = QUOTEX_OTC_ASSETS
+        if broker_type == "real":
+            pool = LIVE_REAL_PAIRS
+        elif broker_type == "pocket":
+            pool = POCKET_OPTION_OTC_ASSETS
+        else:
+            pool = QUOTEX_OTC_ASSETS
 
     selected_pair, direction, confidence, algorithm_tag = analyze_best_pair_and_trend(pool)
     clean_pair = format_pair_name(selected_pair)
@@ -704,7 +731,7 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
         kb = {
             "inline_keyboard": [
                 [
-                    {"text": "🔄 ANALYSIS", "callback_data": "auto_btn:analysis"},
+                    {"text": "🔄 ANALYSIS", "callback_data": f"auto_btn:analysis:{broker_type}"},
                     {"text": "🎴 PARTIAL", "callback_data": "auto_btn:partial"},
                     {"text": "🛑 STOP AUTO", "callback_data": "auto_btn:stop"}
                 ],
@@ -727,10 +754,11 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
         "direction": direction,
         "dir_label": dir_label,
         "dir_action": dir_action,
-        "tz_str": tz_str
+        "tz_str": tz_str,
+        "broker_type": broker_type
     }
 
-def auto_mode_loop(chat_id, username=None):
+def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
     c_id = str(chat_id)
     user_tz, _ = get_user_tz(c_id)
     bot_instance = TelegramBot(chat_id=c_id)
@@ -759,7 +787,7 @@ def auto_mode_loop(chat_id, username=None):
             bot_instance.send_message(limit_msg, reply_markup=kb)
             break
 
-        sig_meta = deliver_auto_signal(c_id, username=username)
+        sig_meta = deliver_auto_signal(c_id, username=username, broker_type=broker_type)
         
         primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
         while auto_mode_users.get(c_id, False):
@@ -826,7 +854,7 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
             f"📢 <b>SESSION ALERT: MD SUMON TRADING BOT</b>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"⚡ VIP Signal Session will start in <b>30 minutes</b> (at <code>{start_time_str}</code>).\n"
-            f"🎯 Market: <code>QUOTEX OTC DIRECT</code>\n"
+            f"🎯 Market: <code>LIVE / OTC DIRECT</code>\n"
             f"💎 Prepare your accounts & follow strict money management!\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"👑 <b>{BOT_TITLE} VIP</b> 👑"
@@ -956,7 +984,7 @@ def build_exact_user_format(signals, broker_name="REAL MARKET", user_tz=None, tz
     footer = (
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
         f"📈 <b>Stats:</b> ✅ {win_count} WIN | 🛡 {mtg_count} MTG | ❌ {loss_count} LOSS | ⏳ {pending_count} Pending\n\n"
-        f"⚡ <b>Quotex Live Auto-Checking: ACTIVE 🟢</b>\n\n"
+        f"⚡ <b>Live Auto-Checking: ACTIVE 🟢</b>\n\n"
         f"❗️ <b>USE SAFETY MARGIN MUST ❗️</b>\n\n"
         f"<b>FEEDBACK :</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a> ✅"
     )
@@ -1051,19 +1079,6 @@ def generate_large_signal_batch(pairs, user_tz, duration_mins=240, is_vip=False)
 # ================= MAIN TELEGRAM BOT RUNNER =================
 def run_server():
     setup_telegram_commands()
-    
-    # Send Server Active Notification on Startup
-    startup_msg = (
-        "╭──────────────────────╮\n"
-        "│ 🟢 SERVER ACTIVE 🚀  │\n"
-        "╰──────────────────────╯\n\n"
-        f"⚡ <b>Engine:</b> <code>{BOT_TITLE} V1</code>\n"
-        "📡 <b>Market Feeds:</b> <code>Quotex & Pocket OTC Sync Active</code>\n"
-        "🎯 <b>Status:</b> <b>100% READY FOR TRADING SIGNALS</b>\n\n"
-        "📶 <i>All systems operational successfully!</i>"
-    )
-    TelegramBot(chat_id=ADMIN_CHAT_ID).send_message(startup_msg)
-
     BASE = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
     GET_UPDATES = BASE + "/getUpdates"
     ANSWER_CALLBACK = BASE + "/answerCallbackQuery"
@@ -1084,9 +1099,9 @@ def run_server():
         is_admin = str(chat_id) == str(ADMIN_CHAT_ID)
         can_schedule = has_schedule_access(chat_id, username)
         
-        row_1 = [{"text": "🤖 AUTO MODE", "callback_data": "menu:auto_signals"}]
+        row_1 = [{"text": "🤖 AUTO MODE", "callback_data": "menu:auto_market_select"}]
         if can_schedule:
-            row_1.append({"text": "⏱ SCHEDULE MODE", "callback_data": "menu:schedule_mode"})
+            row_1.append({"text": "⏱ SCHEDULE MODE", "callback_data": "menu:schedule_hub"})
 
         keyboard_buttons = [
             row_1,
@@ -1101,24 +1116,23 @@ def run_server():
 
         kb = {"inline_keyboard": keyboard_buttons}
         text = (
-            "╭━━━━━━━━━━━━━━━━━━━━╮\n"
+            "╭──────────────────────╮\n"
             f"│ 👑 <b>{BOT_TITLE}</b> 👑\n"
-            "│ — Next-Gen Signal System —\n"
-            "╰━━━━━━━━━━━━━━━━━━━━╯\n\n"
-            "⚡ <b>CORE ENGINE:</b> Strict Quotex Price Math 🤖\n"
-            "📈 <b>SPEED:</b> Real-Time 100% Broker Match ⚡\n"
+            "│   — Next-Gen Signal System —\n"
+            "╰──────────────────────╯\n\n"
+            "⚡️ <b>CORE ENGINE:</b> Strict Price Math 🤖\n"
+            "📈 <b>SPEED:</b> Real-Time 100% Broker Match ⚡️\n"
             "🚀 <b>ALGORITHM:</b> Dynamic Best-Pair + Neural Trend Engine 🧠\n"
             "🛡 <b>RISK CONTROL:</b> Smart Filters & Martingale Protection 🔒\n"
-            "🌐 <b>MARKETS:</b> Quotex OTC Pairs 📊\n"
-            "⚙ <b>AUTOMATION:</b> Live Auto-Update Results 🤖\n"
-            "📡 <b>DATA QUALITY:</b> Direct WebSocket Feeds ⚡\n\n"
-            "────────────────────────\n"
-            f"<b>WHY CHOOSE {BOT_TITLE}:</b>\n"
+            "🌐 <b>MARKETS:</b> Real Market, Quotex & Pocket Option OTC 📊\n"
+            "⚙️ <b>AUTOMATION:</b> Live Auto-Update Results 🤖\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>WHY CHOOSE MD_SUMON_MT4 BOT:</b>\n"
             "💎 100% Exact Broker Chart Sync (Zero Discrepancy)\n"
-            "🎯 Continuous Live Auto-Checking (OTC)\n"
+            "🎯 Continuous Live Auto-Checking (OTC & Real)\n"
             "🛡 Advanced Risk Shielding\n"
             "🔮 Future Signal Generator Mode\n"
-            "────────────────────────\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             '🔥 <i>"Step into the future of precision trading."</i> 🔥\n\n'
             "📶 <b>Select an option below to begin:</b>"
         )
@@ -1203,67 +1217,6 @@ def run_server():
         }
         edit_or_send(chat_id, "🌐 <b>SELECT YOUR PREFERRED TIMEZONE (UTC):</b>", kb, target_msg_id)
 
-    def send_auto_scanner_menu(chat_id, target_msg_id=None):
-        real_open = is_real_market_open()
-        real_status = "0/22 Active (OPEN 🟢)" if real_open else "0/22 Active (CLOSED 🔴)"
-        
-        auto_menu_text = (
-            "╭──────────────────────╮\n"
-            "│ 🤖 AUTO SIGNAL SCANNER │\n"
-            "│ 🎯 MIN CONFIDENCE: 79% │\n"
-            "╰──────────────────────╯\n\n"
-            "⚡ <b>Status</b> : Scanner Ready\n"
-            "🎯 <b>Min Conf</b> : 79% 🎯\n"
-            "🌐 <b>Condition</b> : Payout ≥ 80% Only\n"
-            "📊 <b>Active Pairs</b> : 12 / 58 Pairs Enabled\n"
-            "🌐 <b>Real Strategy</b> : SUMON OTC PRO 🗂 (Auto)\n"
-            "🪵 <b>OTC Strategy</b> : SUMON OTC PRO ⚡️ (Auto)\n\n"
-            "────────────────────────\n"
-            "📊 <b>CONFIGURED BROKER PAIRS:</b>\n"
-            f"• 🌐 Real Market : {real_status}\n"
-            "• 🪵 Pocket OTC : 0/12 Active\n"
-            "• 😋 Quotex OTC : 12/12 Active\n"
-            "────────────────────────\n\n"
-            "🔽 <i>Configure settings or select broker/market below:</i>"
-        )
-        kb = {
-            "inline_keyboard": [
-                [{"text": "🌐 REAL MARKET", "callback_data": "set_auto_mkt:real"}],
-                [{"text": "🪵 POCKET OTC", "callback_data": "set_auto_mkt:pocket"}],
-                [{"text": "😋 QUOTEX OTC", "callback_data": "set_auto_mkt:quotex"}],
-                [{"text": "🎯 CHANGE CONFIDENCE (79%)", "callback_data": "auto:conf"}],
-                [{"text": "🤖 START AUTO SIGNAL", "callback_data": "menu:auto_signals_start"}],
-                [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]
-            ]
-        }
-        edit_or_send(chat_id, auto_menu_text, kb, target_msg_id)
-
-    def send_market_selector_menu(chat_id, target_msg_id=None):
-        real_open = is_real_market_open()
-        real_label = "REAL MARKET (OPEN 🟢)" if real_open else "REAL MARKET (CLOSED 🔴)"
-        
-        market_menu_text = (
-            "╭──────────────────────╮\n"
-            "│ 🌐 SELECT MARKET / BROKER │\n"
-            "╰──────────────────────╯\n\n"
-            "Choose your target trading market or OTC broker feed:\n"
-            "• 🌐 REAL MARKET (OPEN 🟢)\n"
-            "• 🪵 Pocket Option OTC (24/7 OTC Feed)\n"
-            "• 😋 Quotex OTC (24/7 OTC Feed)\n"
-            "• 🚀 All Assets (Combined Scanner)\n\n"
-            "<i>Click a broker category below to select:</i>"
-        )
-        kb = {
-            "inline_keyboard": [
-                [{"text": f"🌐 {real_label}", "callback_data": "select_mkt:real:LIVE"}],
-                [{"text": "🪵 POCKET OPTION OTC", "callback_data": "select_mkt:pocket:OTC"}],
-                [{"text": "😋 QUOTEX OTC", "callback_data": "select_mkt:quotex:OTC"}],
-                [{"text": "🔄 ALL ASSETS", "callback_data": "select_mkt:all:OTC"}],
-                [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]
-            ]
-        }
-        edit_or_send(chat_id, market_menu_text, kb, target_msg_id)
-
     def generate_and_send_batch_signals(chat_id, target_msg_id=None, username=""):
         bot_instance = TelegramBot(chat_id=chat_id)
         user_tz, tz_offset = get_user_tz(chat_id)
@@ -1293,26 +1246,27 @@ def run_server():
             
         st = session_state.get(str(chat_id), {})
         mins = int(st.get("window_mins", 240))
-        broker_key = st.get("broker", "real")
-        broker_label = "REAL MARKET" if broker_key == "real" else ("POCKET OTC" if broker_key == "pocket" else "QUOTEX OTC")
+        broker_key = st.get("broker", "quotex")
+        
+        if broker_key == "real":
+            broker_label = "REAL MARKET"
+            pairs_list = LIVE_REAL_PAIRS
+        elif broker_key == "pocket":
+            broker_label = "POCKET OPTION OTC"
+            pairs_list = POCKET_OPTION_OTC_ASSETS
+        else:
+            broker_label = "QUOTEX OTC"
+            pairs_list = QUOTEX_OTC_ASSETS
         
         loading_msg_id = bot_instance.send_message(
             "╭──────────────────────╮\n"
-            "│ 📊 SCANNING MARKETS   │\n"
+            "│ 🧠 <b>HISTORICAL SCAN INITIATED</b> 🔮\n"
             "╰──────────────────────╯\n\n"
-            "⏳ Scanning market assets & calculating technical indicators..."
+            "⚡️ Scanning best market and high accuracy signal\n\n"
+            "⏳ Please wait a few seconds..."
         )
-        time.sleep(0.6)
+        time.sleep(0.4)
         
-        if broker_key == "real":
-            pairs_list = LIVE_REAL_PAIRS
-        elif broker_key == "pocket":
-            pairs_list = POCKET_OTC_ASSETS
-        elif broker_key == "all":
-            pairs_list = LIVE_REAL_PAIRS + QUOTEX_OTC_ASSETS + POCKET_OTC_ASSETS
-        else:
-            pairs_list = QUOTEX_OTC_ASSETS
-
         signals = generate_large_signal_batch(pairs_list, user_tz=user_tz, duration_mins=mins, is_vip=is_vip)
         signal_text = build_exact_user_format(signals, broker_label, user_tz, tz_offset)
         
@@ -1487,7 +1441,7 @@ def run_server():
                                 set_maintenance_mode(True)
                                 auto_mode_users.clear()
                                 maint_msg = (
-                                    "<blockquote>⚠️ <b>SYSTEM NOTICE: MAINTENANCE MODE</b> ⚠️\n"
+                                    "⚠️ <b>SYSTEM NOTICE: MAINTENANCE MODE</b> ⚠️\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
                                     "🛠 <b>Status:</b> <code>System Under Optimization / Update</code>\n"
                                     "⏳ <b>Expected Time:</b> <code>Few Minutes</code>\n"
@@ -1495,7 +1449,7 @@ def run_server():
                                     "━━━━━━━━━━━━━━━━━━━\n"
                                     "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n\n"
                                     f"💬 <b>Admin Support:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
-                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑"
                                 )
                                 broadcast_to_all_users(maint_msg)
                                 TelegramBot(chat_id=ADMIN_CHAT_ID).send_message("🛠 <b>Maintenance Mode Activated. All users locked.</b>")
@@ -1504,14 +1458,14 @@ def run_server():
                             elif text == "/active":
                                 set_maintenance_mode(False)
                                 active_msg = (
-                                    "<blockquote>🟢 <b>SYSTEM STATUS: SERVER ONLINE</b> 🟢\n"
+                                    "🟢 <b>SYSTEM STATUS: SERVER ONLINE</b> 🟢\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
                                     f"⚡ <b>Engine:</b> <code>{BOT_TITLE} V1</code>\n"
-                                    "📡 <b>Market Feeds:</b> <code>Quotex & Pocket OTC Sync Active</code>\n"
+                                    "📡 <b>Market Feeds:</b> <code>Real & OTC Sync Active</code>\n"
                                     "🎯 <b>Status:</b> <b>100% READY FOR SIGNALS</b>\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
                                     "📶 <i>All systems operational. You can now use the bot!</i>\n"
-                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑"
                                 )
                                 broadcast_to_all_users(active_msg)
                                 TelegramBot(chat_id=ADMIN_CHAT_ID).send_message("🟢 <b>Server Online Activated. System unlocked for all users.</b>")
@@ -1568,15 +1522,22 @@ def run_server():
                                     
                                     user_input_state.pop(chat_id, None)
 
+                                    save_user_schedule(chat_id, {
+                                        "channel": target_ch,
+                                        "start": start_dt.strftime('%H:%M'),
+                                        "end": end_dt.strftime('%H:%M'),
+                                        "date": start_dt.strftime('%Y-%m-%d')
+                                    })
+
                                     confirm_text = (
-                                        f"<blockquote>✅ <b>Schedule Confirmed!</b>\n"
+                                        f"✅ <b>Schedule Confirmed & Saved!</b>\n"
                                         f"━━━━━━━━━━━━━━━━━━━\n"
                                         f"• <b>Target Channel:</b> <code>{target_ch}</code>\n"
                                         f"• <b>30m Alert Time:</b> <code>{alert_dt.strftime('%H:%M')}</code>\n"
                                         f"• <b>Start Time:</b> <code>{start_dt.strftime('%H:%M')}</code>\n"
                                         f"• <b>End Time:</b> <code>{end_dt.strftime('%H:%M')}</code>\n"
                                         f"━━━━━━━━━━━━━━━━━━━\n"
-                                        f"🤖 <i>The bot will automatically manage the complete session.</i></blockquote>"
+                                        f"🤖 <i>The bot will automatically manage the complete session.</i>"
                                     )
                                     TelegramBot(chat_id=chat_id).send_message(
                                         confirm_text,
@@ -1593,6 +1554,14 @@ def run_server():
                                         "⚠️ Invalid duration! Please enter number of minutes (e.g. 60):",
                                         reply_markup=cancel_kb
                                     )
+                                continue
+
+                            elif step == "EDIT_SCHEDULE_INPUT":
+                                user_input_state.pop(chat_id, None)
+                                TelegramBot(chat_id=chat_id).send_message(
+                                    "✅ <b>Schedule Updated Successfully!</b>",
+                                    reply_markup={"inline_keyboard": [[{"text": "🏠 HOME MENU", "callback_data": "back_to_menu"}]]}
+                                )
                                 continue
 
                     if "callback_query" in item:
@@ -1618,14 +1587,14 @@ def run_server():
                                 set_maintenance_mode(True)
                                 auto_mode_users.clear()
                                 maint_msg = (
-                                    "<blockquote>⚠️ <b>SYSTEM NOTICE: MAINTENANCE MODE</b> ⚠️\n"
+                                    "⚠️ <b>SYSTEM NOTICE: MAINTENANCE MODE</b> ⚠️\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
                                     "🛠 <b>Status:</b> <code>System Under Optimization / Update</code>\n"
                                     "⏳ <b>Expected Time:</b> <code>Few Minutes</code>\n"
                                     "🔒 <b>Signals:</b> <code>Temporarily Paused</code>\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
-                                    "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n"
-                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+                                    "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n\n"
+                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑"
                                 )
                                 broadcast_to_all_users(maint_msg)
                                 send_admin_panel(chat_id, msg_id)
@@ -1633,14 +1602,14 @@ def run_server():
                             elif cb_data == "adm_act:online":
                                 set_maintenance_mode(False)
                                 active_msg = (
-                                    "<blockquote>🟢 <b>SYSTEM STATUS: SERVER ONLINE</b> 🟢\n"
+                                    "🟢 <b>SYSTEM STATUS: SERVER ONLINE</b> 🟢\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
                                     f"⚡ <b>Engine:</b> <code>{BOT_TITLE} V1</code>\n"
-                                    "📡 <b>Market Feeds:</b> <code>Quotex & Pocket OTC Sync Active</code>\n"
+                                    "📡 <b>Market Feeds:</b> <code>Real & OTC Sync Active</code>\n"
                                     "🎯 <b>Status:</b> <b>100% READY FOR SIGNALS</b>\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
                                     "📶 <i>All systems operational. You can now use the bot!</i>\n"
-                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑"
                                 )
                                 broadcast_to_all_users(active_msg)
                                 send_admin_panel(chat_id, msg_id)
@@ -1653,10 +1622,21 @@ def run_server():
                         if cb_data == "sched_cancel":
                             user_input_state.pop(chat_id, None)
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
-                        elif cb_data == "menu:schedule_mode":
+                        elif cb_data == "menu:schedule_hub":
                             if not has_schedule_access(chat_id, username):
                                 TelegramBot(chat_id=chat_id).send_message("🔒 <i>Schedule Mode is restricted to authorized operators only. Contact Admin @MD_SUMON_MT4.</i>")
                                 continue
+                            hub_text = "⏱ <b>SCHEDULE MODE MANAGEMENT HUB</b>\n\nChoose an action below:"
+                            hub_kb = {
+                                "inline_keyboard": [
+                                    [{"text": "➕ NEW SCHEDULE", "callback_data": "sched:new"}],
+                                    [{"text": "📜 SCHEDULE HISTORY & SAVED", "callback_data": "sched:history"}],
+                                    [{"text": "✏️ EDIT SCHEDULE", "callback_data": "sched:edit"}],
+                                    [{"text": "🔙 BACK TO MENU", "callback_data": "back_to_menu"}]
+                                ]
+                            }
+                            edit_or_send(chat_id, hub_text, hub_kb, msg_id)
+                        elif cb_data == "sched:new":
                             user_input_state[chat_id] = {"step": "WAIT_CHANNEL"}
                             prompt = (
                                 "⏱ <b>AUTOMATED SCHEDULE MODE SETUP</b>\n\n"
@@ -1664,6 +1644,31 @@ def run_server():
                                 "(e.g. <code>@your_channel</code> or <code>-1001234567890</code>)"
                             )
                             edit_or_send(chat_id, prompt, {"inline_keyboard": [[{"text": "❌ CANCEL & BACK TO MENU", "callback_data": "sched_cancel"}]]}, msg_id)
+                        elif cb_data == "sched:history":
+                            saved = load_saved_schedules(chat_id)
+                            if not saved:
+                                h_text = "📜 <b>SCHEDULE HISTORY</b>\n\nNo saved or past schedules found."
+                            else:
+                                h_text = "📜 <b>SCHEDULE HISTORY & SAVED LIST</b>\n\n"
+                                for idx, s in enumerate(saved, 1):
+                                    h_text += f"{idx}. Target: <code>{s.get('channel')}</code> | Date: {s.get('date')} | Time: {s.get('start')} - {s.get('end')}\n"
+                            edit_or_send(chat_id, h_text, {"inline_keyboard": [[{"text": "🔙 BACK", "callback_data": "menu:schedule_hub"}]]}, msg_id)
+                        elif cb_data == "sched:edit":
+                            saved = load_saved_schedules(chat_id)
+                            if not saved:
+                                edit_text = "✏️ <b>EDIT SCHEDULE</b>\n\nNo active schedules available to edit."
+                                edit_kb = {"inline_keyboard": [[{"text": "🔙 BACK", "callback_data": "menu:schedule_hub"}]]}
+                            else:
+                                edit_text = "✏️ <b>SELECT SCHEDULE TO EDIT:</b>\n\n"
+                                edit_buttons = []
+                                for idx, s in enumerate(saved, 1):
+                                    edit_buttons.append([{"text": f"Schedule #{idx} ({s.get('start')} - {s.get('end')})", "callback_data": f"sched_edit_sel:{idx-1}"}])
+                                edit_buttons.append([{"text": "🔙 BACK", "callback_data": "menu:schedule_hub"}])
+                                edit_kb = {"inline_keyboard": edit_buttons}
+                            edit_or_send(chat_id, edit_text, edit_kb, msg_id)
+                        elif cb_data.startswith("sched_edit_sel:"):
+                            user_input_state[chat_id] = {"step": "EDIT_SCHEDULE_INPUT"}
+                            edit_or_send(chat_id, "✏️ <b>Send new time in HH:MM format (e.g. 23:00) to update this schedule:</b>", {"inline_keyboard": [[{"text": "❌ CANCEL", "callback_data": "sched_cancel"}]]}, msg_id)
                         elif cb_data == "menu:profile":
                             send_profile_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "menu:tz_picker":
@@ -1672,21 +1677,24 @@ def run_server():
                             offset_val = float(cb_data.split(":")[-1])
                             set_user_tz(chat_id, offset_val)
                             send_profile_menu(chat_id, username=username, target_msg_id=msg_id)
-                        elif cb_data == "menu:auto_signals":
-                            send_auto_scanner_menu(chat_id, msg_id)
-                        elif cb_data.startswith("set_auto_mkt:"):
-                            mkt = cb_data.split(":")[-1]
-                            session_state.setdefault(chat_id, {})["auto_broker"] = mkt
-                            send_auto_scanner_menu(chat_id, msg_id)
-                        elif cb_data == "menu:auto_signals_start":
+                        elif cb_data == "menu:auto_market_select":
+                            real_status_label = "🟢 REAL MARKET (OPEN)" if is_real_market_open() else "🔴 REAL MARKET (CLOSED)"
+                            edit_or_send(chat_id, "🌐 <b>SELECT AUTO MODE MARKET:</b>", {"inline_keyboard": [[{"text": real_status_label, "callback_data": "auto_start:real"}], [{"text": "🛡 QUOTEX OTC", "callback_data": "auto_start:quotex"}], [{"text": "🚀 POCKET OPTION OTC", "callback_data": "auto_start:pocket"}], [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]]}, msg_id)
+                        elif cb_data.startswith("auto_start:"):
+                            b_type = cb_data.split(":")[-1]
                             auto_mode_users[str(chat_id)] = True
-                            TelegramBot(chat_id=chat_id).send_message("<b>🤖 AUTO MODE STARTED ✅</b>", reply_markup={"inline_keyboard": [[{"text": "🛑 STOP AUTO", "callback_data": "auto_btn:stop"}]]})
-                            threading.Thread(target=auto_mode_loop, args=(chat_id, username), daemon=True).start()
+                            TelegramBot(chat_id=chat_id).send_message(f"<b>[:] AUTO MODE ACTIVATED ({b_type.upper()}) ✅</b>", reply_markup={"inline_keyboard": [[{"text": "🛑 STOP AUTO", "callback_data": "auto_btn:stop"}]]})
+                            threading.Thread(target=auto_mode_loop, args=(chat_id, username, b_type), daemon=True).start()
                         elif cb_data == "auto_btn:stop":
                             auto_mode_users[str(chat_id)] = False
-                            TelegramBot(chat_id=chat_id).send_message("🛑 <b>Auto Signal Mode Stopped.</b>", reply_markup={"inline_keyboard": [[{"text": "▶️ RESTART AUTO", "callback_data": "menu:auto_signals"}], [{"text": "🏠 HOME MENU", "callback_data": "back_to_menu"}]]})
-                        elif cb_data in ["auto_btn:analysis", "auto_btn:next"]:
-                            deliver_auto_signal(chat_id, username=username)
+                            TelegramBot(chat_id=chat_id).send_message("🛑 <b>Auto Signal Mode Stopped.</b>", reply_markup={"inline_keyboard": [[{"text": "▶️ RESTART AUTO", "callback_data": "menu:auto_market_select"}], [{"text": "🏠 HOME MENU", "callback_data": "back_to_menu"}]]})
+                        elif cb_data.startswith("auto_btn:analysis:"):
+                            b_type = cb_data.split(":")[-1]
+                            deliver_auto_signal(chat_id, username=username, broker_type=b_type)
+                        elif cb_data == "auto_btn:analysis":
+                            deliver_auto_signal(chat_id, username=username, broker_type="quotex")
+                        elif cb_data == "auto_btn:next":
+                            deliver_auto_signal(chat_id, username=username, broker_type="quotex")
                         elif cb_data == "auto_btn:partial":
                             user_tz, _ = get_user_tz(chat_id)
                             TelegramBot(chat_id=chat_id).send_message(build_partial_scoreboard_text(chat_id, user_tz), reply_markup={"inline_keyboard": [[{"text": "🔄 NEW SIGNAL", "callback_data": "auto_btn:next"}, {"text": "❌ RESET PARTIAL", "callback_data": "partial:reset"}], [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]]})
@@ -1694,7 +1702,8 @@ def run_server():
                             user_partial_data[str(chat_id)] = []
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "menu:future":
-                            send_market_selector_menu(chat_id, msg_id)
+                            real_status_label = "🟢 REAL MARKET (OPEN)" if is_real_market_open() else "🔴 REAL MARKET (CLOSED)"
+                            edit_or_send(chat_id, "🌐 <b>SELECT FUTURE MODE MARKET:</b>", {"inline_keyboard": [[{"text": real_status_label, "callback_data": "select_mkt:real:LIVE"}], [{"text": "🛡 QUOTEX OTC", "callback_data": "select_mkt:quotex:OTC"}], [{"text": "🚀 POCKET OPTION OTC", "callback_data": "select_mkt:pocket:OTC"}], [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]]}, msg_id)
                         elif cb_data.startswith("select_mkt:"):
                             session_state.setdefault(chat_id, {})["broker"] = cb_data.split(":")[1]
                             edit_or_send(chat_id, "⏱ <b>SELECT SIGNAL DURATION:</b>", {"inline_keyboard": [[{"text": "⏱ 15 min", "callback_data": "time:15"}, {"text": "⏱ 30 min", "callback_data": "time:30"}], [{"text": "⏱ 1 Hour", "callback_data": "time:60"}, {"text": "⏱ 2 Hours", "callback_data": "time:120"}], [{"text": "🔥 4 Hours (Large Batch)", "callback_data": "time:240"}], [{"text": "🔙 Back", "callback_data": "menu:future"}]]}, msg_id)
@@ -1726,10 +1735,10 @@ def run_server():
                                 f"📊 <b>DAILY SUMMARY ({today_str})</b>\n────────────────────────\n🟩 Direct Wins: {d_stats.get('win', 0)}\n🛡 MTG Wins: {d_stats.get('mtg', 0)}\n❌ Loss: {d_stats.get('loss', 0)}\n🎯 Total Win Rate: {winrate}"
                             )
                             edit_or_send(chat_id, summary_text, {"inline_keyboard": [[{"text": "🔙 Back", "callback_data": "back_to_menu"}]]}, msg_id)
-                        elif cb_data == "menu:support":
+                        elif cb_data.startswith("menu:support"):
                             TelegramBot(chat_id=chat_id).send_message(f"📞 <b>SUPPORT</b>\n\nAdmin: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\nBot Handle: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>")
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
-                        elif cb_data == "menu:about":
+                        elif cb_data.startswith("menu:about"):
                             TelegramBot(chat_id=chat_id).send_message(f"ℹ️ <b>ABOUT</b>\n\n{BOT_TITLE} — VIP Signal Bot V1.")
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "back_to_menu":
