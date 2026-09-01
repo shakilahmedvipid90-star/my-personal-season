@@ -240,7 +240,7 @@ def analyze_best_pair_and_trend(pair_pool):
     best_pair = shuffled_pool[0]
     best_score = -999.0
     best_dir = "CALL"
-    best_tag = "Neural Bullish Trend + Quantum Flow"
+    best_tag = "SUMON OTC PRO + Neural Flow"
 
     candidates_checked = 0
     for p in shuffled_pool:
@@ -273,10 +273,10 @@ def analyze_best_pair_and_trend(pair_pool):
             best_pair = p
             if ema7[-1] >= ema21[-1]:
                 best_dir = "CALL"
-                best_tag = "Neural Bullish Trend + Quantum Flow"
+                best_tag = "SUMON OTC PRO + Bullish Flow"
             else:
                 best_dir = "PUT"
-                best_tag = "Neural Bearish Trend + Quantum Flow"
+                best_tag = "SUMON OTC PRO + Bearish Flow"
 
     confidence = random.randint(96, 99)
     return best_pair, best_dir, confidence, best_tag
@@ -677,7 +677,15 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
         
     entry_dt = (now_dt + timedelta(minutes=1)).replace(second=0, microsecond=0)
     
-    pool = [pair] if pair else QUOTEX_OTC_ASSETS
+    st = session_state.get(str(chat_id), {})
+    broker_key = st.get("auto_broker", "quotex")
+    if broker_key == "real":
+        pool = LIVE_REAL_PAIRS
+    elif broker_key == "pocket":
+        pool = POCKET_OTC_ASSETS
+    else:
+        pool = QUOTEX_OTC_ASSETS
+
     selected_pair, direction, confidence, algorithm_tag = analyze_best_pair_and_trend(pool)
     clean_pair = format_pair_name(selected_pair)
     
@@ -1208,20 +1216,22 @@ def run_server():
             "🎯 <b>Min Conf</b> : 79% 🎯\n"
             "🌐 <b>Condition</b> : Payout ≥ 80% Only\n"
             "📊 <b>Active Pairs</b> : 12 / 58 Pairs Enabled\n"
-            "🌐 <b>Real Strategy</b> : AI SHOT V1 🗂 (Auto)\n"
-            "🪾 <b>OTC Strategy</b> : AI SHOT V2 ⚡ (Auto)\n\n"
+            "🌐 <b>Real Strategy</b> : SUMON OTC PRO 🗂 (Auto)\n"
+            "🪵 <b>OTC Strategy</b> : SUMON OTC PRO ⚡️ (Auto)\n\n"
             "────────────────────────\n"
             "📊 <b>CONFIGURED BROKER PAIRS:</b>\n"
             f"• 🌐 Real Market : {real_status}\n"
-            "• 🪾 Pocket OTC : 0/12 Active\n"
+            "• 🪵 Pocket OTC : 0/12 Active\n"
             "• 😋 Quotex OTC : 12/12 Active\n"
             "────────────────────────\n\n"
-            "🔽 <i>Configure settings or start the scanner:</i>"
+            "🔽 <i>Configure settings or select broker/market below:</i>"
         )
         kb = {
             "inline_keyboard": [
+                [{"text": "🌐 REAL MARKET", "callback_data": "set_auto_mkt:real"}],
+                [{"text": "🪵 POCKET OTC", "callback_data": "set_auto_mkt:pocket"}],
+                [{"text": "😋 QUOTEX OTC", "callback_data": "set_auto_mkt:quotex"}],
                 [{"text": "🎯 CHANGE CONFIDENCE (79%)", "callback_data": "auto:conf"}],
-                [{"text": "🎛 ALLOW / BLOCK PAIRS", "callback_data": "auto:pairs"}],
                 [{"text": "🤖 START AUTO SIGNAL", "callback_data": "menu:auto_signals_start"}],
                 [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]
             ]
@@ -1238,7 +1248,7 @@ def run_server():
             "╰──────────────────────╯\n\n"
             "Choose your target trading market or OTC broker feed:\n"
             "• 🌐 REAL MARKET (OPEN 🟢)\n"
-            "• 🪾 Pocket Option OTC (24/7 OTC Feed)\n"
+            "• 🪵 Pocket Option OTC (24/7 OTC Feed)\n"
             "• 😋 Quotex OTC (24/7 OTC Feed)\n"
             "• 🚀 All Assets (Combined Scanner)\n\n"
             "<i>Click a broker category below to select:</i>"
@@ -1246,7 +1256,7 @@ def run_server():
         kb = {
             "inline_keyboard": [
                 [{"text": f"🌐 {real_label}", "callback_data": "select_mkt:real:LIVE"}],
-                [{"text": "🪾 POCKET OPTION OTC", "callback_data": "select_mkt:pocket:OTC"}],
+                [{"text": "🪵 POCKET OPTION OTC", "callback_data": "select_mkt:pocket:OTC"}],
                 [{"text": "😋 QUOTEX OTC", "callback_data": "select_mkt:quotex:OTC"}],
                 [{"text": "🔄 ALL ASSETS", "callback_data": "select_mkt:all:OTC"}],
                 [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]
@@ -1663,6 +1673,10 @@ def run_server():
                             set_user_tz(chat_id, offset_val)
                             send_profile_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "menu:auto_signals":
+                            send_auto_scanner_menu(chat_id, msg_id)
+                        elif cb_data.startswith("set_auto_mkt:"):
+                            mkt = cb_data.split(":")[-1]
+                            session_state.setdefault(chat_id, {})["auto_broker"] = mkt
                             send_auto_scanner_menu(chat_id, msg_id)
                         elif cb_data == "menu:auto_signals_start":
                             auto_mode_users[str(chat_id)] = True
