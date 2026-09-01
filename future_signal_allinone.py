@@ -2,9 +2,8 @@
 """
 👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
 - Dynamic Best-Pair Selector & Neural Trend Engine Active
-- Full Multi-Market Support: Quotex OTC, Pocket Option OTC & Real Market
+- Exact API Routing for Real Market (forex), Quotex (quotex) & Pocket Option (pocketoption)
 - Schedule History, Edit & Save Feature Added
-- Fixed Keep-Alive Response Size for Cron-Job.org Compatibility
 """
 
 import os
@@ -183,7 +182,7 @@ def save_user_schedule(chat_id, schedule_data):
     data[c_id].append(schedule_data)
     save_json(SCHEDULE_SAVED_FILE, data)
 
-# ================= XCHARTS LIVE DATA FETCHER =================
+# ================= XCHARTS LIVE DATA FETCHER (EXACT API ROUTING) =================
 XCHARTS_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*",
@@ -196,32 +195,39 @@ XCHARTS_HEADERS = {
     "Sec-Fetch-Site": "same-origin"
 }
 
-def format_symbol_for_xcharts(pair_raw):
+def get_xcharts_api_url(pair_raw, broker_type="quotex"):
     clean = pair_raw.strip().upper()
-    if "_OTC" in clean:
-        base = clean.replace("_OTC", "")
-        return f"{base}-OTCq"
-    if "-OTC" in clean:
-        return f"{clean}q" if not clean.endswith("q") else clean
-    return f"{clean}q" if not clean.endswith("q") else clean
+    
+    # 1. Real Market (Forex) -> /api/market/forex/?symbol=frx...
+    if broker_type == "real" or clean in LIVE_REAL_PAIRS:
+        base = clean.replace("Q", "")
+        return f"https://xcharts.live/api/market/forex/?symbol=frx{base}&interval=1m&limit=2000"
+    
+    # 2. Pocket Option OTC -> /api/market/pocketoption/?symbol=...-OTCp
+    elif broker_type == "pocket" or clean in [p.upper() for p in POCKET_OPTION_OTC_ASSETS]:
+        base = clean.replace("_OTC", "").replace("-OTC", "").replace("P", "")
+        return f"https://xcharts.live/api/market/pocketoption/?symbol={base}-OTCp&interval=1m&limit=600"
+    
+    # 3. Quotex OTC -> /api/market/quotex/?symbol=...-OTCq
+    else:
+        base = clean.replace("_OTC", "").replace("-OTC", "").replace("Q", "")
+        return f"https://xcharts.live/api/market/quotex/?symbol={base}-OTCq&interval=1m&limit=100"
 
-def fetch_recent_candles_xcharts(pair_raw, limit=30):
-    symbol = format_symbol_for_xcharts(pair_raw)
-    url = f"https://xcharts.live/api/market/quotex/?symbol={symbol}&interval=1m&limit={limit}"
+def fetch_recent_candles_xcharts(pair_raw, limit=30, broker_type="quotex"):
+    url = get_xcharts_api_url(pair_raw, broker_type)
     try:
         resp = requests.get(url, headers=XCHARTS_HEADERS, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             candles = data.get("candles", [])
-            if candles and len(candles) >= 10:
+            if candles and len(candles) >= 5:
                 return candles
     except Exception:
         pass
     return None
 
-def fetch_live_candle_xcharts(pair_raw, target_dt):
-    symbol = format_symbol_for_xcharts(pair_raw)
-    url = f"https://xcharts.live/api/market/quotex/?symbol={symbol}&interval=1m&limit=100"
+def fetch_live_candle_xcharts(pair_raw, target_dt, broker_type="quotex"):
+    url = get_xcharts_api_url(pair_raw, broker_type)
     
     if target_dt.tzinfo is None:
         target_utc_ts = int(target_dt.timestamp() // 60) * 60
@@ -241,7 +247,7 @@ def fetch_live_candle_xcharts(pair_raw, target_dt):
                     c_time = c.get("time")
                     if c_time is not None:
                         diff = abs(c_time - target_utc_ts)
-                        if diff < min_diff and diff <= 59:
+                        if diff < min_diff and diff <= 65:
                             min_diff = diff
                             best_match = c
                 
@@ -259,7 +265,7 @@ def fetch_live_candle_xcharts(pair_raw, target_dt):
     return None
 
 # ================= TRUE MULTI-PAIR DYNAMIC SCANNER =================
-def analyze_best_pair_and_trend(pair_pool):
+def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
     shuffled_pool = list(pair_pool)
     random.shuffle(shuffled_pool)
     
@@ -273,7 +279,7 @@ def analyze_best_pair_and_trend(pair_pool):
         if candidates_checked >= 6:
             break
             
-        candles = fetch_recent_candles_xcharts(p, limit=20)
+        candles = fetch_recent_candles_xcharts(p, limit=20, broker_type=broker_type)
         if not candles:
             continue
             
@@ -307,17 +313,17 @@ def analyze_best_pair_and_trend(pair_pool):
     confidence = random.randint(96, 99)
     return best_pair, best_dir, confidence, best_tag
 
-def evaluate_primary_candle(pair, target_dt, direction):
-    candle = fetch_live_candle_xcharts(pair, target_dt)
+def evaluate_primary_candle(pair, target_dt, direction, broker_type="quotex"):
+    candle = fetch_live_candle_xcharts(pair, target_dt, broker_type)
     if candle:
         op = candle["open"]
         cl = candle["close"]
         return (cl > op) if direction in ["CALL", "BUY"] else (cl < op)
     return False
 
-def evaluate_mtg_candle(pair, target_dt, direction):
+def evaluate_mtg_candle(pair, target_dt, direction, broker_type="quotex"):
     mtg_target_dt = target_dt + timedelta(minutes=1)
-    candle = fetch_live_candle_xcharts(pair, mtg_target_dt)
+    candle = fetch_live_candle_xcharts(pair, mtg_target_dt, broker_type)
     if candle:
         op = candle["open"]
         cl = candle["close"]
@@ -404,6 +410,7 @@ def save_active_batches_to_disk():
             serializable[c_id] = {
                 "msg_id": b["msg_id"],
                 "broker": b["broker"],
+                "broker_type": b.get("broker_type", "quotex"),
                 "tz_offset": b["tz_offset"],
                 "signals": sigs_copy
             }
@@ -713,7 +720,7 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
         else:
             pool = QUOTEX_OTC_ASSETS
 
-    selected_pair, direction, confidence, algorithm_tag = analyze_best_pair_and_trend(pool)
+    selected_pair, direction, confidence, algorithm_tag = analyze_best_pair_and_trend(pool, broker_type=broker_type)
     clean_pair = format_pair_name(selected_pair)
     
     dir_label = "BUY" if direction == "CALL" else "SELL"
@@ -798,7 +805,7 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
         if not auto_mode_users.get(c_id, False):
             break
 
-        primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"])
+        primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
         if primary_win:
             outcome_status = "WIN"
         else:
@@ -811,7 +818,7 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
             if not auto_mode_users.get(c_id, False):
                 break
                 
-            mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"])
+            mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
             outcome_status = "MTG" if mtg_win else "LOSS"
 
         record_to_partial(c_id, {
@@ -994,6 +1001,7 @@ def continuous_background_scanner(chat_id, batch_data):
     signals = batch_data["signals"]
     msg_id = batch_data["msg_id"]
     broker = batch_data["broker"]
+    broker_type = batch_data.get("broker_type", "quotex")
     tz_offset = batch_data["tz_offset"]
     user_tz = timezone(timedelta(hours=tz_offset))
     bot_instance = TelegramBot(chat_id=chat_id)
@@ -1019,7 +1027,7 @@ def continuous_background_scanner(chat_id, batch_data):
                     state_changed = True
 
             if s.get("status") in ["PENDING", "LIVE"] and now_time >= (s["target_dt"] + timedelta(minutes=1, seconds=7)):
-                if evaluate_primary_candle(s["pair"], s["target_dt"], s["direction"]):
+                if evaluate_primary_candle(s["pair"], s["target_dt"], s["direction"], broker_type=broker_type):
                     s["status"] = "WIN"
                     record_signal_stats(chat_id, "WIN", user_tz)
                 else:
@@ -1027,7 +1035,7 @@ def continuous_background_scanner(chat_id, batch_data):
                 state_changed = True
 
             if s.get("status") == "IN_MTG" and now_time >= (s["target_dt"] + timedelta(minutes=2, seconds=7)):
-                if evaluate_mtg_candle(s["pair"], s["target_dt"], s["direction"]):
+                if evaluate_mtg_candle(s["pair"], s["target_dt"], s["direction"], broker_type=broker_type):
                     s["status"] = "MTG"
                     record_signal_stats(chat_id, "MTG", user_tz)
                 else:
@@ -1051,7 +1059,7 @@ def continuous_background_scanner(chat_id, batch_data):
         
         time.sleep(2)
 
-def generate_large_signal_batch(pairs, user_tz, duration_mins=240, is_vip=False):
+def generate_large_signal_batch(pairs, user_tz, duration_mins=240, is_vip=False, broker_type="quotex"):
     if not pairs:
         return []
     signals = []
@@ -1061,7 +1069,7 @@ def generate_large_signal_batch(pairs, user_tz, duration_mins=240, is_vip=False)
     pool = list(pairs)
     curr_dt = start_time.replace(second=0, microsecond=0)
     for _ in range(num_signals):
-        best_p, direction, _, _ = analyze_best_pair_and_trend(pool)
+        best_p, direction, _, _ = analyze_best_pair_and_trend(pool, broker_type=broker_type)
         pair_fmt = format_pair_name(best_p)
         
         signals.append({
@@ -1247,6 +1255,7 @@ def run_server():
         st = session_state.get(str(chat_id), {})
         mins = int(st.get("window_mins", 240))
         broker_key = st.get("broker", "quotex")
+        broker_type = st.get("broker_type", "quotex")
         
         if broker_key == "real":
             broker_label = "REAL MARKET"
@@ -1267,7 +1276,7 @@ def run_server():
         )
         time.sleep(0.4)
         
-        signals = generate_large_signal_batch(pairs_list, user_tz=user_tz, duration_mins=mins, is_vip=is_vip)
+        signals = generate_large_signal_batch(pairs_list, user_tz=user_tz, duration_mins=mins, is_vip=is_vip, broker_type=broker_type)
         signal_text = build_exact_user_format(signals, broker_label, user_tz, tz_offset)
         
         if loading_msg_id:
@@ -1283,7 +1292,7 @@ def run_server():
         if final_msg_id and signals:
             if not is_vip:
                 increment_future_daily_usage(chat_id, user_tz)
-            batch_data = {"msg_id": final_msg_id, "signals": signals, "broker": broker_label, "tz_offset": tz_offset}
+            batch_data = {"msg_id": final_msg_id, "signals": signals, "broker": broker_label, "broker_type": broker_type, "tz_offset": tz_offset}
             active_batches[str(chat_id)] = batch_data
             save_active_batches_to_disk()
             threading.Thread(target=continuous_background_scanner, args=(chat_id, batch_data), daemon=True).start()
@@ -1703,9 +1712,11 @@ def run_server():
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "menu:future":
                             real_status_label = "🟢 REAL MARKET (OPEN)" if is_real_market_open() else "🔴 REAL MARKET (CLOSED)"
-                            edit_or_send(chat_id, "🌐 <b>SELECT FUTURE MODE MARKET:</b>", {"inline_keyboard": [[{"text": real_status_label, "callback_data": "select_mkt:real:LIVE"}], [{"text": "🛡 QUOTEX OTC", "callback_data": "select_mkt:quotex:OTC"}], [{"text": "🚀 POCKET OPTION OTC", "callback_data": "select_mkt:pocket:OTC"}], [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]]}, msg_id)
+                            edit_or_send(chat_id, "🌐 <b>SELECT FUTURE MODE MARKET:</b>", {"inline_keyboard": [[{"text": real_status_label, "callback_data": "select_mkt:real:real"}], [{"text": "🛡 QUOTEX OTC", "callback_data": "select_mkt:quotex:quotex"}], [{"text": "🚀 POCKET OPTION OTC", "callback_data": "select_mkt:pocket:pocket"}], [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]]}, msg_id)
                         elif cb_data.startswith("select_mkt:"):
-                            session_state.setdefault(chat_id, {})["broker"] = cb_data.split(":")[1]
+                            parts = cb_data.split(":")
+                            session_state.setdefault(chat_id, {})["broker"] = parts[1]
+                            session_state.setdefault(chat_id, {})["broker_type"] = parts[2]
                             edit_or_send(chat_id, "⏱ <b>SELECT SIGNAL DURATION:</b>", {"inline_keyboard": [[{"text": "⏱ 15 min", "callback_data": "time:15"}, {"text": "⏱ 30 min", "callback_data": "time:30"}], [{"text": "⏱ 1 Hour", "callback_data": "time:60"}, {"text": "⏱ 2 Hours", "callback_data": "time:120"}], [{"text": "🔥 4 Hours (Large Batch)", "callback_data": "time:240"}], [{"text": "🔙 Back", "callback_data": "menu:future"}]]}, msg_id)
                         elif cb_data.startswith("time:"):
                             session_state.setdefault(chat_id, {})["window_mins"] = int(cb_data.split(":")[-1])
@@ -1735,10 +1746,10 @@ def run_server():
                                 f"📊 <b>DAILY SUMMARY ({today_str})</b>\n────────────────────────\n🟩 Direct Wins: {d_stats.get('win', 0)}\n🛡 MTG Wins: {d_stats.get('mtg', 0)}\n❌ Loss: {d_stats.get('loss', 0)}\n🎯 Total Win Rate: {winrate}"
                             )
                             edit_or_send(chat_id, summary_text, {"inline_keyboard": [[{"text": "🔙 Back", "callback_data": "back_to_menu"}]]}, msg_id)
-                        elif cb_data.startswith("menu:support"):
+                        elif cb_data == "menu:support":
                             TelegramBot(chat_id=chat_id).send_message(f"📞 <b>SUPPORT</b>\n\nAdmin: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\nBot Handle: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>")
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
-                        elif cb_data.startswith("menu:about"):
+                        elif cb_data == "menu:about":
                             TelegramBot(chat_id=chat_id).send_message(f"ℹ️ <b>ABOUT</b>\n\n{BOT_TITLE} — VIP Signal Bot V1.")
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "back_to_menu":
