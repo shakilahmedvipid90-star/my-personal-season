@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (TRUE MULTI-PAIR SCANNER)
-- Dynamic Best-Pair Selector with Full Multi-Pair Fair Rotation & Shuffling
-- Neural Bullish/Bearish Trend + Quantum Flow Engine
+👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (AUTO MODE OTC ONLY)
+- Dynamic Best-Pair Selector & Neural Trend Engine Active
+- Real Market Removed from Auto Mode (OTC Direct)
 - Full 9-Command Admin Suite & Maintenance Control System
 """
 
@@ -26,7 +26,7 @@ class RenderHealthServer(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        self.wfile.write(b"MD SUMON TRADING BOT is LIVE and Healthy!")
+        self.wfile.write(b"OK")
 
     def log_message(self, format, *args):
         return
@@ -39,7 +39,7 @@ def start_background_web_server():
 threading.Thread(target=start_background_web_server, daemon=True).start()
 
 # ================= CONFIGURATION =================
-TELEGRAM_BOT_TOKEN = "8978217705:AAHkmibkUrAvnOMBGfplq_z_lMcPjpnzQBA"
+TELEGRAM_BOT_TOKEN = "8700854708:AAF4yGJ4r6MGQYtard9MyASzu3nVKFgtds8"
 ADMIN_CHAT_ID = "7170071838"
 DEFAULT_TZ_OFFSET = 4  # UTC+4
 TELEGRAM_HANDLE = "@MD_SUMON_MT4"
@@ -174,7 +174,7 @@ def format_symbol_for_xcharts(pair_raw):
         return f"{base}-OTCq"
     if "-OTC" in clean:
         return f"{clean}q" if not clean.endswith("q") else clean
-    return f"{clean}q"
+    return f"{clean}q" if not clean.endswith("q") else clean
 
 def fetch_recent_candles_xcharts(pair_raw, limit=30):
     symbol = format_symbol_for_xcharts(pair_raw)
@@ -231,7 +231,6 @@ def fetch_live_candle_xcharts(pair_raw, target_dt):
 
 # ================= TRUE MULTI-PAIR DYNAMIC SCANNER =================
 def analyze_best_pair_and_trend(pair_pool):
-    # Shuffle the complete pool randomly so all pairs get equal rotation
     shuffled_pool = list(pair_pool)
     random.shuffle(shuffled_pool)
     
@@ -240,10 +239,9 @@ def analyze_best_pair_and_trend(pair_pool):
     best_dir = "CALL"
     best_tag = "Neural Bullish Trend + Quantum Flow"
 
-    # Scan through multiple randomized pairs to find the strongest trend dynamically
     candidates_checked = 0
     for p in shuffled_pool:
-        if candidates_checked >= 6:  # Checks 6 different random pairs per signal generation
+        if candidates_checked >= 6:
             break
             
         candles = fetch_recent_candles_xcharts(p, limit=20)
@@ -265,8 +263,6 @@ def analyze_best_pair_and_trend(pair_pool):
         
         diff = ema7[-1] - ema21[-1]
         strength = abs(diff)
-
-        # Introduce a slight randomized weight to ensure variety across all 21 pairs
         strength += random.uniform(0.0001, 0.0005)
 
         if strength > best_score:
@@ -558,99 +554,95 @@ def build_partial_scoreboard_text(chat_id, user_tz):
         else:
             losses += 1
             badge = "🟥"
-        lines += f"⧉ {item['time']} - {item['pair']} - {item['dir']} {badge}\n────────── . ──────────\n"
+        lines += f"⧉ {item['time']} - {item['pair']} - {item['dir']} {badge}\n────────── ✦ ──────────\n"
         
     win_rate = int((wins / total) * 100) if total > 0 else 0
     return (
-        f"<blockquote>========== PARTIAL ==========\n\n"
-        f"────────── . ──────────\n"
-        f" 🗓 - {now_str}\n"
-        f"────────── . ──────────\n"
-        f" ✅ Total : {total}\n"
-        f"────────── . ──────────\n"
+        f"🏛 <b>========== VIP SESSION PARTIAL ==========</b>\n\n"
+        f"────────── ✦ ──────────\n"
+        f" 🗓 <b>Date:</b> `{now_str}`\n"
+        f"────────── ✦ ──────────\n"
+        f" ✅ <b>Total Executed:</b> `{total} Trades`\n"
+        f"────────── ✦ ──────────\n"
         f"{lines}"
-        f" 🧮 Placar : {wins} x {losses} ◈ ({win_rate}%)\n"
-        f"────────── . ──────────\n"
-        f"🏆 Win : {wins} ┃ Loss : {losses} ┃ ◈ ({win_rate}%)\n"
-        f"────────── . ──────────\n"
-        f"✅ Partial Sent Successfully\n"
-        f"────────── . ──────────</blockquote>"
+        f" 🧮 <b>Performance Placar:</b> `{wins} Wins x {losses} Losses` ◈ `({win_rate}%)`\n"
+        f"────────── ✦ ──────────\n"
+        f"🏆 <b>Win Rate:</b> **{win_rate}.0%** ┃ ⚡ <b>Status:</b> `OPTIMIZED`\n"
+        f"────────── ✦ ──────────\n"
+        f"💎 <b>Verified by {BOT_TITLE}</b> 💎"
     )
 
 # ================= LUXURY VIP CARD BUILDERS =================
 def build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag):
     return (
-        f"<blockquote>👑 <b>{BOT_TITLE}</b> 👑\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"📊 ASSET: <code>{clean_pair}</code>\n"
-        f"🎯 CONFIDENCE: <code>{confidence}% Ultra-High</code>\n"
-        f"🧠 ENGINE: <code>{algorithm_tag}</code>\n"
-        f"🌐 ZONE: <code>{tz_str} (Live Sync)</code>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⏳ <i>Locking best entry point...</i></blockquote>"
+        f"💎 <b>[ {BOT_TITLE} — ELITE VIP ]</b> 💎\n"
+        f"═══════════════════════════════════\n"
+        f"⚡ <b>ENGINE:</b> `{algorithm_tag}`\n"
+        f"🪙 <b>ASSET:</b> `{clean_pair}` ➔ `[QUOTEX OTC]`\n"
+        f"🎯 <b>CONFIDENCE:</b> `{confidence}% [INSTITUTIONAL GRADE]`\n"
+        f"⏰ <b>ZONE:</b> `{tz_str} (Live Sync)`\n"
+        f"═══════════════════════════════════\n"
+        f"⏳ <i>Locking best entry point...</i>"
     )
 
 def build_execution_ticket_card(clean_pair, dir_action, entry_str):
     action_text = "CALL ▲ (BUY UP)" if dir_action == "CALL" else "PUT ▼ (SELL DOWN)"
     dir_emoji = "🟢" if dir_action == "CALL" else "🔴"
     return (
-        f"<blockquote>👑 <b>{BOT_TITLE}</b> 👑\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"📊 ASSET: <code>{clean_pair}</code>\n"
-        f"{dir_emoji} ACTION: <b>{action_text}</b>\n"
-        f"⏰ ENTRY: <code>{entry_str}</code>\n"
-        f"⌛ EXPIRY: <b>1 MINUTE</b>\n"
-        f"🛡 STRATEGY: <b>MAX 1-STEP MTG</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⚠️ <i>Wait for exact 00-second candle open</i></blockquote>"
+        f"💎 <b>[ {BOT_TITLE} — ELITE VIP ]</b> 💎\n"
+        f"═══════════════════════════════════\n"
+        f"🪙 <b>ASSET:</b> `{clean_pair}`\n"
+        f"{dir_emoji} <b>ACTION:</b> <b>{action_text}</b>\n"
+        f"⏰ <b>ENTRY TIME:</b> `{entry_str}` | ⌛ <b>EXPIRY:</b> `1 MINUTE`\n"
+        f"🛡 <b>RISK MANAGEMENT:</b> `MAX 1-STEP SMART MTG`\n"
+        f"═══════════════════════════════════\n"
+        f"⚠️ <i>Wait for exact 00-second candle open</i>"
     )
 
 def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins, losses, win_rate):
     trade_call_text = "🟢 <b>BUY UP</b>" if dir_action == "CALL" else "🔴 <b>SELL DOWN</b>"
     
     if outcome_status == "WIN":
-        result_title = "✅ <b>DIRECT WIN (ITM) 🎯</b>"
-        profit_status = "🟩 <b>+85% PROFIT SECURED</b>"
-        mtg_status = "<code>NOT REQUIRED</code>"
+        result_title = "✅ <b>DIRECT ITM (WIN) 🎯</b>"
+        profit_status = "+85% REVENUE SECURED"
+        mtg_status = "NOT REQUIRED (CLEAN WIN)"
     elif outcome_status == "MTG":
         result_title = "🟡 <b>MTG WIN (ITM) 🎯</b>"
-        profit_status = "🟨 <b>1-STEP RECOVERED</b>"
-        mtg_status = "<code>1 STEP USED</code>"
+        profit_status = "1-STEP RECOVERED"
+        mtg_status = "1 STEP USED"
     else:
         result_title = "❌ <b>TRADE LOSS (OTM) 🛑</b>"
-        profit_status = "🟥 <b>SESSION LOSS</b>"
-        mtg_status = "<code>FAILED</code>"
+        profit_status = "SESSION LOSS"
+        mtg_status = "FAILED"
 
     return (
-        f"<blockquote>👑 <b>{BOT_TITLE}</b> 👑\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"🏆 <b>OFFICIAL RESULT UPDATE</b> 🏆\n\n"
-        f"🏛 <b>Broker:</b> <code>QUOTEX OTC</code>\n"
-        f"🪙 <b>Asset:</b> <code>{clean_pair}</code>\n"
-        f"🎯 <b>Trade:</b> {trade_call_text}\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"💎 <b>[ {BOT_TITLE} — ELITE VIP ]</b> 💎\n"
+        f"═══════════════════════════════════\n"
+        f"🏆 <b>OFFICIAL TRADE OUTCOME REPORT</b> 🏆\n\n"
+        f"🏛 <b>Broker/Market:</b> `QUOTEX OTC DIRECT`\n"
+        f"🪙 <b>Asset Pair:</b> `{clean_pair}` ➔ {trade_call_text}\n\n"
         f"🎉 <b>RESULT:</b> {result_title}\n"
-        f"📈 <b>Profit:</b> {profit_status}\n"
-        f"🛡 <b>Martingale:</b> {mtg_status}\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"🧮 <b>TOTAL SCORE</b> ➔ 🟢 <b>{wins} WIN</b> ┃ 🔴 <b>{losses} LOSS</b>\n"
-        f"🎯 <b>ACCURACY:</b> <b>({win_rate:.1f}%)</b>\n"
-        f"✈️ <b>TELEGRAM:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+        f"💰 <b>Profit Status:</b> `{profit_status}`\n"
+        f"🛡 <b>Martingale Step:</b> `{mtg_status}`\n"
+        f"═══════════════════════════════════\n"
+        f"📊 <b>LIVE SESSION SCOREBOARD:</b>\n"
+        f"🟢 <b>WIN:</b> `{wins}` ┃ 🔴 <b>LOSS:</b> `{losses}` ┃ 🎯 <b>ACCURACY:</b> `{win_rate:.1f}%`\n"
+        f"✈️ <b>VIP CHANNEL:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
+        f"═══════════════════════════════════"
     )
 
 def build_maintenance_card():
     return (
-        "<blockquote>🛠 <b>SYSTEM UNDER MAINTENANCE</b> 🛠\n"
-        "━━━━━━━━━━━━━━━━━━━\n"
-        "🔒 <b>Access Status:</b> <code>Temporarily Locked</code>\n"
-        "⚙️ <b>Reason:</b> <code>System Optimization & Algorithm Update</code>\n"
-        "⏳ <b>Signal Engine:</b> <code>Offline for Security & Accuracy</code>\n"
-        "━━━━━━━━━━━━━━━━━━━\n"
-        "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n\n"
-        f"💬 <b>Admin Support:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
-        f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+        "🛡 <b>[ SYSTEM SECURITY & UPGRADE LOCK ]</b> 🛡\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "⚙️ <b>Operational State:</b> `UNDER OPTIMIZATION`\n"
+        "🔒 <b>Access Level:</b> `TEMPORARILY RESTRICTED`\n"
+        "⏳ <b>Estimated Duration:</b> `Few Minutes`\n"
+        "📊 <b>Signal Engine:</b> `Offline for Neural Recalibration`\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📢 <i>আমরা বটের নির্ভুলতা, ডেটা স্পিড এবং উইন-রেট আরও বাড়ানোর জন্য ব্যাকএন্ড আপডেট করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে পুনরায় চালু হয়ে যাবে।</i>\n\n"
+        f"💬 <b>Official Assistance:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
+        f"👑 <b>[ {BOT_TITLE} VIP ]</b> 👑"
     )
 
 def build_vip_activated_notification_card():
@@ -745,8 +737,8 @@ def auto_mode_loop(chat_id, username=None):
             )
             kb = {
                 "inline_keyboard": [
-                    [{"text": "👑 GET PREMIUM ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
-                    [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
+                    {"text": "👑 GET PREMIUM ↗️", "url": "https://t.me/MD_SUMON_MT4"},
+                    {"text": "🏠 HOME", "callback_data": "back_to_menu"}
                 ]
             }
             bot_instance.send_message(limit_msg, reply_markup=kb)
@@ -893,7 +885,7 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
     bot_channel.send_message(final_partial_card)
     
     bot_admin.send_message(
-        f"✅ <b>SCHEDULED SESSION COMPLETED!</b>\n"
+        f"✅ <b>SCHEDULED SESSION COMPLETED & CLOSED AUTOMATICALLY!</b>\n"
         f"Target: <code>{target_channel}</code>\n"
         f"Final Stats: {wins} Wins / {losses} Losses ({win_rate:.1f}%)"
     )
@@ -906,14 +898,14 @@ def build_exact_user_format(signals, broker_name="REAL MARKET", user_tz=None, tz
     tz_label = f"UTC {sign}{tz_offset}:00"
     
     header = (
-        f"🐉==❗️ <b>{BOT_TITLE}</b> ❗️==🐉\n\n"
+        f"👑==⚡ <b>{BOT_TITLE} FUTURE MATRIX</b> ⚡==👑\n\n"
         f"📅 <b>DATE:</b> {date_str}\n"
         f"❤️ <b>MARKET:</b> {broker_name.upper()}\n\n"
-        f"😬 <i>Follow Rules & 💵 Management</i>\n\n"
-        f"😓 <b>TIME ZONE - ( {tz_label} )</b> 😓\n\n"
-        f"🔘 <b>TRADE TIME : 1 MINUTE 🚀</b>\n\n"
-        f"❗️ <b>USE 1 STEP MTG ➕</b>\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"💎 <i>Strict Money Management & Safety Margin Required</i>\n\n"
+        f"🌐 <b>TIME ZONE - ( {tz_label} GST )</b> 🌐\n\n"
+        f"🔘 <b>TIMEFRAME : 1 MINUTE EXECUTION 🚀</b>\n\n"
+        f"❗️ <b>STRATEGY : 1 STEP MARTINGALE ALLOWED ➕</b>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     )
     lines = ""
     win_count = 0
@@ -947,11 +939,10 @@ def build_exact_user_format(signals, broker_name="REAL MARKET", user_tz=None, tz
         lines += f"{idx:02d}. {s['time_str']} | <code>{s['pair']}</code> ➔ {dir_emoji} {s['direction']} | {status_text}\n"
 
     footer = (
-        f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📈 <b>Stats:</b> ✅ {win_count} WIN | 🛡 {mtg_count} MTG | ❌ {loss_count} LOSS | ⏳ {pending_count} Pending\n\n"
-        f"⚡ <b>Quotex Live Auto-Checking: ACTIVE 🟢</b>\n\n"
-        f"❗️ <b>USE SAFETY MARGIN MUST ❗️</b>\n\n"
-        f"<b>FEEDBACK :</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a> ✅"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📈 <b>Batch Stats:</b> ✅ {win_count} WIN | 🛡 {mtg_count} MTG | ❌ {loss_count} LOSS | ⏳ {pending_count} Active\n\n"
+        f"⚡ <b>Quotex Live Auto-Checking: ONLINE 🟢</b>\n\n"
+        f"<b>SUPPORT DESK :</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a> ✅"
     )
     return header + lines + footer
 
@@ -1089,13 +1080,13 @@ def run_server():
             "📈 <b>SPEED:</b> Real-Time 100% Broker Match ⚡\n"
             "🚀 <b>ALGORITHM:</b> Dynamic Best-Pair + Neural Trend Engine 🧠\n"
             "🛡 <b>RISK CONTROL:</b> Smart Filters & Martingale Protection 🔒\n"
-            "🌐 <b>MARKETS:</b> Real Market & Quotex OTC Pairs 📊\n"
+            "🌐 <b>MARKETS:</b> Quotex OTC Pairs 📊\n"
             "⚙ <b>AUTOMATION:</b> Live Auto-Update Results 🤖\n"
             "📡 <b>DATA QUALITY:</b> Direct WebSocket Feeds ⚡\n\n"
             "────────────────────────\n"
             f"<b>WHY CHOOSE {BOT_TITLE}:</b>\n"
             "💎 100% Exact Broker Chart Sync (Zero Discrepancy)\n"
-            "🎯 Continuous Live Auto-Checking (OTC & Real)\n"
+            "🎯 Continuous Live Auto-Checking (OTC)\n"
             "🛡 Advanced Risk Shielding\n"
             "🔮 Future Signal Generator Mode\n"
             "────────────────────────\n\n"
@@ -1197,8 +1188,8 @@ def run_server():
             )
             kb = {
                 "inline_keyboard": [
-                    [{"text": "👑 GET PREMIUM ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
-                    [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
+                    {"text": "👑 GET PREMIUM ↗️", "url": "https://t.me/MD_SUMON_MT4"},
+                    {"text": "🏠 HOME", "callback_data": "back_to_menu"}
                 ]
             }
             if target_msg_id:
@@ -1393,15 +1384,16 @@ def run_server():
                                 set_maintenance_mode(True)
                                 auto_mode_users.clear()
                                 maint_msg = (
-                                    "<blockquote>⚠️ <b>SYSTEM NOTICE: MAINTENANCE MODE</b> ⚠️\n"
-                                    "━━━━━━━━━━━━━━━━━━━\n"
-                                    "🛠 <b>Status:</b> <code>System Under Optimization / Update</code>\n"
-                                    "⏳ <b>Expected Time:</b> <code>Few Minutes</code>\n"
-                                    "🔒 <b>Signals:</b> <code>Temporarily Paused</code>\n"
-                                    "━━━━━━━━━━━━━━━━━━━\n"
-                                    "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n\n"
-                                    f"💬 <b>Admin Support:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
-                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+                                    "🛡 <b>[ SYSTEM SECURITY & UPGRADE LOCK ]</b> 🛡\n"
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                                    "⚙️ <b>Operational State:</b> `UNDER OPTIMIZATION`\n"
+                                    "🔒 <b>Access Level:</b> `TEMPORARILY RESTRICTED`\n"
+                                    "⏳ <b>Estimated Duration:</b> `Few Minutes`\n"
+                                    "📊 <b>Signal Engine:</b> `Offline for Neural Recalibration`\n"
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                                    "📢 <i>আমরা বটের নির্ভুলতা, ডেটা স্পিড এবং উইন-রেট আরও বাড়ানোর জন্য ব্যাকএন্ড আপডেট করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে পুনরায় চালু হয়ে যাবে।</i>\n\n"
+                                    f"💬 <b>Official Assistance:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
+                                    f"👑 <b>[ {BOT_TITLE} VIP ]</b> 👑"
                                 )
                                 broadcast_to_all_users(maint_msg)
                                 TelegramBot(chat_id=ADMIN_CHAT_ID).send_message("🛠 <b>Maintenance Mode Activated. All users locked.</b>")
@@ -1524,14 +1516,16 @@ def run_server():
                                 set_maintenance_mode(True)
                                 auto_mode_users.clear()
                                 maint_msg = (
-                                    "<blockquote>⚠️ <b>SYSTEM NOTICE: MAINTENANCE MODE</b> ⚠️\n"
-                                    "━━━━━━━━━━━━━━━━━━━\n"
-                                    "🛠 <b>Status:</b> <code>System Under Optimization / Update</code>\n"
-                                    "⏳ <b>Expected Time:</b> <code>Few Minutes</code>\n"
-                                    "🔒 <b>Signals:</b> <code>Temporarily Paused</code>\n"
-                                    "━━━━━━━━━━━━━━━━━━━\n"
-                                    "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n"
-                                    f"👑 <b>{BOT_TITLE} VIP</b> 👑</blockquote>"
+                                    "🛡 <b>[ SYSTEM SECURITY & UPGRADE LOCK ]</b> 🛡\n"
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                                    "⚙️ <b>Operational State:</b> `UNDER OPTIMIZATION`\n"
+                                    "🔒 <b>Access Level:</b> `TEMPORARILY RESTRICTED`\n"
+                                    "⏳ <b>Estimated Duration:</b> `Few Minutes`\n"
+                                    "📊 <b>Signal Engine:</b> `Offline for Neural Recalibration`\n"
+                                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                                    "📢 <i>আমরা বটের নির্ভুলতা, ডেটা স্পিড এবং উইন-রেট আরও বাড়ানোর জন্য ব্যাকএন্ড আপডেট করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে পুনরায় চালু হয়ে যাবে।</i>\n\n"
+                                    f"💬 <b>Official Assistance:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
+                                    f"👑 <b>[ {BOT_TITLE} VIP ]</b> 👑"
                                 )
                                 broadcast_to_all_users(maint_msg)
                                 send_admin_panel(chat_id, msg_id)
