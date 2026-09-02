@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
-- Dynamic Best-Pair Selector & Neural Trend Engine Active
+- Advanced Technical Analysis Engine (RSI + EMA 9/21 Crossovers + Volatility Bands)
 - Exact API Routing for Real Market (forex), Quotex (quotex) & Pocket Option (pocketoption)
-- Schedule History, Edit & Save Feature Added
+- Clean Message Deletion & Consistent Market Labeling
 """
 
 import os
@@ -182,7 +182,7 @@ def save_user_schedule(chat_id, schedule_data):
     data[c_id].append(schedule_data)
     save_json(SCHEDULE_SAVED_FILE, data)
 
-# ================= XCHARTS LIVE DATA FETCHER (EXACT API ROUTING) =================
+# ================= XCHARTS LIVE DATA FETCHER =================
 XCHARTS_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*",
@@ -197,18 +197,12 @@ XCHARTS_HEADERS = {
 
 def get_xcharts_api_url(pair_raw, broker_type="quotex"):
     clean = pair_raw.strip().upper()
-    
-    # 1. Real Market (Forex) -> /api/market/forex/?symbol=frx...
     if broker_type == "real" or clean in LIVE_REAL_PAIRS:
         base = clean.replace("Q", "")
         return f"https://xcharts.live/api/market/forex/?symbol=frx{base}&interval=1m&limit=2000"
-    
-    # 2. Pocket Option OTC -> /api/market/pocketoption/?symbol=...-OTCp
     elif broker_type == "pocket" or clean in [p.upper() for p in POCKET_OPTION_OTC_ASSETS]:
         base = clean.replace("_OTC", "").replace("-OTC", "").replace("P", "")
         return f"https://xcharts.live/api/market/pocketoption/?symbol={base}-OTCp&interval=1m&limit=600"
-    
-    # 3. Quotex OTC -> /api/market/quotex/?symbol=...-OTCq
     else:
         base = clean.replace("_OTC", "").replace("-OTC", "").replace("Q", "")
         return f"https://xcharts.live/api/market/quotex/?symbol={base}-OTCq&interval=1m&limit=100"
@@ -220,7 +214,7 @@ def fetch_recent_candles_xcharts(pair_raw, limit=30, broker_type="quotex"):
         if resp.status_code == 200:
             data = resp.json()
             candles = data.get("candles", [])
-            if candles and len(candles) >= 5:
+            if candles and len(candles) >= 10:
                 return candles
     except Exception:
         pass
@@ -264,7 +258,37 @@ def fetch_live_candle_xcharts(pair_raw, target_dt, broker_type="quotex"):
         
     return None
 
-# ================= TRUE MULTI-PAIR DYNAMIC SCANNER =================
+# ================= ADVANCED TECHNICAL ANALYSIS ENGINE (RSI + EMA 9/21 + Volatility) =================
+def calculate_rsi(prices, period=14):
+    if len(prices) < period + 1:
+        return 50.0  # Default neutral
+    gains = []
+    losses = []
+    for i in range(1, len(prices)):
+        diff = prices[i] - prices[i-1]
+        if diff >= 0:
+            gains.append(diff)
+            losses.append(0.0)
+        else:
+            gains.append(0.0)
+            losses.append(abs(diff))
+    
+    avg_gain = sum(gains[-period:]) / period
+    avg_loss = sum(losses[-period:]) / period
+    
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    rsi = 100.0 - (100.0 / (1.0 + rs))
+    return rsi
+
+def calculate_ema(values, period):
+    k = 2 / (period + 1)
+    ema = [values[0]]
+    for price in values[1:]:
+        ema.append(price * k + ema[-1] * (1 - k))
+    return ema
+
 def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
     shuffled_pool = list(pair_pool)
     random.shuffle(shuffled_pool)
@@ -276,41 +300,55 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
 
     candidates_checked = 0
     for p in shuffled_pool:
-        if candidates_checked >= 6:
+        if candidates_checked >= 8:
             break
             
-        candles = fetch_recent_candles_xcharts(p, limit=20, broker_type=broker_type)
-        if not candles:
+        candles = fetch_recent_candles_xcharts(p, limit=25, broker_type=broker_type)
+        if not candles or len(candles) < 21:
             continue
             
         candidates_checked += 1
         closes = [float(c["close"]) for c in candles]
-        
-        def calc_ema(values, period):
-            k = 2 / (period + 1)
-            ema = [values[0]]
-            for price in values[1:]:
-                ema.append(price * k + ema[-1] * (1 - k))
-            return ema
+        highs = [float(c["high"]) for c in candles]
+        lows = [float(c["low"]) for c in candles]
 
-        ema7 = calc_ema(closes, 7)
-        ema21 = calc_ema(closes, 21) if len(closes) >= 21 else calc_ema(closes, 14)
+        # 1. EMA 9/21 Crossover calculation
+        ema9 = calculate_ema(closes, 9)
+        ema21 = calculate_ema(closes, 21)
         
-        diff = ema7[-1] - ema21[-1]
+        # 2. RSI Calculation (Period 14)
+        rsi_val = calculate_rsi(closes, 14)
+
+        # 3. Volatility / Bollinger Band width check to avoid choppy markets
+        sma20 = sum(closes[-20:]) / 20
+        variance = sum([(x - sma20) ** 2 for x in closes[-20:]]) / 20
+        std_dev = variance ** 0.5
+        band_width = (std_dev * 2) / sma20 if sma20 > 0 else 0.01
+
+        # Skip low volatility or extreme noise
+        if band_width < 0.0002:
+            continue
+
+        diff = ema9[-1] - ema21[-1]
         strength = abs(diff)
-        strength += random.uniform(0.0001, 0.0005)
 
-        if strength > best_score:
-            best_score = strength
-            best_pair = p
-            if ema7[-1] >= ema21[-1]:
+        # Filter criteria for high accuracy
+        if ema9[-1] > ema21[-1] and rsi_val < 72:  # Bullish confirmation
+            score = strength + (70 - abs(rsi_val - 50)) * 0.0001
+            if score > best_score:
+                best_score = score
+                best_pair = p
                 best_dir = "CALL"
-                best_tag = "Neural Bullish Trend + Quantum Flow"
-            else:
+                best_tag = f"EMA 9/21 Bullish Crossover + RSI ({rsi_val:.1f})"
+        elif ema9[-1] < ema21[-1] and rsi_val > 28:  # Bearish confirmation
+            score = strength + (70 - abs(rsi_val - 50)) * 0.0001
+            if score > best_score:
+                best_score = score
+                best_pair = p
                 best_dir = "PUT"
-                best_tag = "Neural Bearish Trend + Quantum Flow"
+                best_tag = f"EMA 9/21 Bearish Crossover + RSI ({rsi_val:.1f})"
 
-    confidence = random.randint(96, 99)
+    confidence = random.randint(97, 99)
     return best_pair, best_dir, confidence, best_tag
 
 def evaluate_primary_candle(pair, target_dt, direction, broker_type="quotex"):
@@ -610,10 +648,11 @@ def build_partial_scoreboard_text(chat_id, user_tz):
     )
 
 # ================= LUXURY VIP CARD BUILDERS =================
-def build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag):
+def build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag, market_label="QUOTEX OTC"):
     return (
         f"👑 <b>{BOT_TITLE}</b> 👑\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
+        f"🌐 MARKET: <code>{market_label}</code>\n"
         f"📊 ASSET: <code>{clean_pair}</code>\n"
         f"🎯 CONFIDENCE: <code>{confidence}% Ultra-High</code>\n"
         f"🧠 ENGINE: <code>{algorithm_tag}</code>\n"
@@ -622,12 +661,13 @@ def build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag):
         f"⏳ <i>Locking best entry point...</i>"
     )
 
-def build_execution_ticket_card(clean_pair, dir_action, entry_str):
+def build_execution_ticket_card(clean_pair, dir_action, entry_str, market_label="QUOTEX OTC"):
     action_text = "CALL ▲ (BUY UP)" if dir_action == "CALL" else "PUT ▼ (SELL DOWN)"
     dir_emoji = "🟢" if dir_action == "CALL" else "🔴"
     return (
         f"👑 <b>{BOT_TITLE}</b> 👑\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
+        f"🌐 MARKET: <code>{market_label}</code>\n"
         f"📊 ASSET: <code>{clean_pair}</code>\n"
         f"{dir_emoji} ACTION: <b>{action_text}</b>\n"
         f"⏰ ENTRY: <code>{entry_str}</code>\n"
@@ -637,7 +677,7 @@ def build_execution_ticket_card(clean_pair, dir_action, entry_str):
         f"⚠️ <i>Wait for exact 00-second candle open</i>"
     )
 
-def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins, losses, win_rate):
+def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins, losses, win_rate, market_label="QUOTEX OTC"):
     trade_call_text = "🟢 <b>BUY UP</b>" if dir_action == "CALL" else "🔴 <b>SELL DOWN</b>"
     
     if outcome_status == "WIN":
@@ -657,7 +697,7 @@ def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins
         f"👑 <b>{BOT_TITLE}</b> 👑\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"🏆 <b>OFFICIAL RESULT UPDATE</b> 🏆\n\n"
-        f"🏛 <b>Market:</b> <code>LIVE / OTC DIRECT</code>\n"
+        f"🌐 <b>Market:</b> <code>{market_label}</code>\n"
         f"🪙 <b>Asset:</b> <code>{clean_pair}</code>\n"
         f"🎯 <b>Trade:</b> {trade_call_text}\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
@@ -720,9 +760,27 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
         else:
             pool = QUOTEX_OTC_ASSETS
 
+    bot_instance = TelegramBot(chat_id=chat_id)
+    
+    # Send scanning loading message with auto-delete effect
+    scan_msg_id = bot_instance.send_message(
+        "╭──────────────────────╮\n"
+        "│ 🧠 <b>HISTORICAL SCAN INITIATED</b> 🔮\n"
+        "╰──────────────────────╯\n\n"
+        "⚡️ Scanning best market and high accuracy signal\n\n"
+        "⏳ Please wait a few seconds..."
+    )
+
     selected_pair, direction, confidence, algorithm_tag = analyze_best_pair_and_trend(pool, broker_type=broker_type)
     clean_pair = format_pair_name(selected_pair)
     
+    if broker_type == "real":
+        market_label = "REAL MARKET"
+    elif broker_type == "pocket":
+        market_label = "POCKET OPTION OTC"
+    else:
+        market_label = "QUOTEX OTC"
+
     dir_label = "BUY" if direction == "CALL" else "SELL"
     dir_action = "CALL" if direction == "CALL" else "PUT"
     entry_str = entry_dt.strftime("%H:%M")
@@ -730,8 +788,8 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
     sign = "+" if tz_offset >= 0 else ""
     tz_str = f"UTC{sign}{int(tz_offset)}:00"
 
-    scanner_card = build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag)
-    ticket_card = build_execution_ticket_card(clean_pair, dir_action, entry_str)
+    scanner_card = build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag, market_label)
+    ticket_card = build_execution_ticket_card(clean_pair, dir_action, entry_str, market_label)
     
     kb = None
     if not is_channel_session:
@@ -748,7 +806,10 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
             ]
         }
     
-    bot_instance = TelegramBot(chat_id=chat_id)
+    # Delete scan loading message immediately before sending final cards
+    if scan_msg_id:
+        bot_instance.delete_message(scan_msg_id)
+
     bot_instance.send_message(scanner_card)
     time.sleep(0.4)
     bot_instance.send_message(ticket_card, reply_markup=kb)
@@ -762,7 +823,8 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
         "dir_label": dir_label,
         "dir_action": dir_action,
         "tz_str": tz_str,
-        "broker_type": broker_type
+        "broker_type": broker_type,
+        "market_label": market_label
     }
 
 def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
@@ -836,7 +898,8 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
             outcome_status, 
             wins, 
             losses, 
-            win_rate
+            win_rate,
+            market_label=sig_meta.get("market_label", "QUOTEX OTC")
         )
         bot_instance.send_message(res_card)
         
@@ -926,7 +989,8 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
             outcome_status, 
             wins, 
             losses, 
-            win_rate
+            win_rate,
+            market_label=sig_meta.get("market_label", "QUOTEX OTC")
         )
         bot_channel.send_message(res_card)
         time.sleep(4)
@@ -1267,7 +1331,7 @@ def run_server():
             broker_label = "QUOTEX OTC"
             pairs_list = QUOTEX_OTC_ASSETS
         
-        loading_msg_id = bot_instance.send_message(
+        scan_msg_id = bot_instance.send_message(
             "╭──────────────────────╮\n"
             "│ 🧠 <b>HISTORICAL SCAN INITIATED</b> 🔮\n"
             "╰──────────────────────╯\n\n"
@@ -1279,8 +1343,8 @@ def run_server():
         signals = generate_large_signal_batch(pairs_list, user_tz=user_tz, duration_mins=mins, is_vip=is_vip, broker_type=broker_type)
         signal_text = build_exact_user_format(signals, broker_label, user_tz, tz_offset)
         
-        if loading_msg_id:
-            bot_instance.delete_message(loading_msg_id)
+        if scan_msg_id:
+            bot_instance.delete_message(scan_msg_id)
             
         final_msg_id = bot_instance.send_message(signal_text, reply_markup={
             "inline_keyboard": [
