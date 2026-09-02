@@ -697,6 +697,7 @@ def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins
         f"───────────────✦───────────────\n"
         f" 🧮 <b>Score:</b> 🟢 <b>{wins} WIN</b> | 🔴 <b>{losses} LOSS</b>\n"
         f" 🎯 <b>Accuracy:</b> <b>{win_rate:.1f}%</b>\n"
+        f" ✈️ <b>Telegram:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
         f"───────────────✦───────────────\n"
         f" 👑 <b>{BOT_TITLE} VIP</b>\n"
         f"───────────────✦───────────────"
@@ -847,8 +848,8 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
             auto_mode_users[c_id] = False
             kb = {
                 "inline_keyboard": [
-                    {"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"},
-                    {"text": "🏠 HOME", "callback_data": "back_to_menu"}
+                    [{"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
+                    [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
                 ]
             }
             bot_instance.send_message(build_limit_exceeded_card(), reply_markup=kb)
@@ -1323,8 +1324,8 @@ def run_server():
             )
             kb = {
                 "inline_keyboard": [
-                    {"text": "👑 GET PREMIUM ↗️", "url": "https://t.me/MD_SUMON_MT4"},
-                    {"text": "🏠 HOME", "callback_data": "back_to_menu"}
+                    [{"text": "👑 GET PREMIUM ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
+                    [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
                 ]
             }
             if target_msg_id:
@@ -1799,6 +1800,21 @@ def run_server():
                             set_user_tz(chat_id, offset_val)
                             send_profile_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "menu:auto_market_select":
+                            is_vip = is_vip_user(chat_id, username)
+                            user_tz, _ = get_user_tz(chat_id)
+                            used_today = get_user_daily_usage(chat_id, user_tz)
+                            
+                            # এখানেই চেক করে নিচ্ছি লিমিট শেষ কি না!
+                            if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
+                                kb = {
+                                    "inline_keyboard": [
+                                        [{"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
+                                        [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
+                                    ]
+                                }
+                                TelegramBot(chat_id=chat_id).send_message(build_limit_exceeded_card(), reply_markup=kb)
+                                continue
+                            
                             real_status_label = "🟢 REAL MARKET (OPEN)" if is_real_market_open() else "🔴 REAL MARKET (CLOSED)"
                             edit_or_send(chat_id, "🌐 <b>SELECT AUTO MODE MARKET:</b>", {"inline_keyboard": [[{"text": real_status_label, "callback_data": "auto_start:real"}], [{"text": "🛡 QUOTEX OTC", "callback_data": "auto_start:quotex"}], [{"text": "🚀 POCKET OPTION OTC", "callback_data": "auto_start:pocket"}], [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]]}, msg_id)
                         elif cb_data.startswith("auto_start:"):
@@ -1810,8 +1826,8 @@ def run_server():
                             if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
                                 kb = {
                                     "inline_keyboard": [
-                                        {"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"},
-                                        {"text": "🏠 HOME", "callback_data": "back_to_menu"}
+                                        [{"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
+                                        [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
                                     ]
                                 }
                                 TelegramBot(chat_id=chat_id).send_message(build_limit_exceeded_card(), reply_markup=kb)
@@ -1834,8 +1850,8 @@ def run_server():
                             if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
                                 kb = {
                                     "inline_keyboard": [
-                                        {"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"},
-                                        {"text": "🏠 HOME", "callback_data": "back_to_menu"}
+                                        [{"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
+                                        [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
                                     ]
                                 }
                                 TelegramBot(chat_id=chat_id).send_message(build_limit_exceeded_card(), reply_markup=kb)
@@ -1850,8 +1866,8 @@ def run_server():
                             if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
                                 kb = {
                                     "inline_keyboard": [
-                                        {"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"},
-                                        {"text": "🏠 HOME", "callback_data": "back_to_menu"}
+                                        [{"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
+                                        [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
                                     ]
                                 }
                                 TelegramBot(chat_id=chat_id).send_message(build_limit_exceeded_card(), reply_markup=kb)
