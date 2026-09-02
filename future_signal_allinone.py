@@ -2,10 +2,11 @@
 """
 👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
 - Advanced Neural Trend & Quantum Flow Engine (RSI + EMA Crossovers + Volatility Filter)
+- Combined VIP Signal Card Layout (Scanner + Execution Ticket in One Clean Card)
 - Dedicated Market Selection for Schedule Mode (Real, Quotex OTC, Pocket Option OTC)
+- Instant Schedule Confirmation + 30-Minute Prior VIP Alert Notification in Target Channel
 - Fixed & Accurate API URL Formats for Quotex (-OTCq), Pocket Option (-OTCp), and Real Market (frx)
 - Strict Admin/Operator-Only Access for Schedule Mode (Hidden from Free Users)
-- Stop Time Display & Instant Channel Alert on Schedule Setup
 - Stylish VIP Daily Limit Exceeded Notification
 - Clean Message Deletion, Single-Thread Lock & Consistent Market Labeling
 """
@@ -646,33 +647,24 @@ def build_partial_scoreboard_text(chat_id, user_tz):
     )
 
 # ================= LUXURY VIP CARD BUILDERS =================
-def build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag, market_label="QUOTEX OTC"):
+def build_vip_combined_card(clean_pair, direction, confidence, tz_str, algorithm_tag, entry_str, market_label="QUOTEX OTC"):
+    dir_emoji = "🟢" if direction in ["CALL", "BUY"] else "🔴"
+    dir_text = "CALL ▲ (BUY UP)" if direction in ["CALL", "BUY"] else "PUT ▼ (SELL DOWN)"
     return (
         f"👑 <b>{BOT_TITLE}</b> 👑\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"🌐 MARKET: <code>{market_label}</code>\n"
-        f"📊 ASSET: <code>{clean_pair}</code>\n"
-        f"🎯 CONFIDENCE: <code>{confidence}% Ultra-High</code>\n"
-        f"🧠 ENGINE: <code>{algorithm_tag}</code>\n"
-        f"🌐 ZONE: <code>{tz_str} (Live Sync)</code>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⏳ <i>Locking best entry point...</i>"
-    )
-
-def build_execution_ticket_card(clean_pair, dir_action, entry_str, market_label="QUOTEX OTC"):
-    action_text = "CALL ▲ (BUY UP)" if dir_action == "CALL" else "PUT ▼ (SELL DOWN)"
-    dir_emoji = "🟢" if dir_action == "CALL" else "🔴"
-    return (
-        f"👑 <b>{BOT_TITLE}</b> 👑\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"🌐 MARKET: <code>{market_label}</code>\n"
-        f"📊 ASSET: <code>{clean_pair}</code>\n"
-        f"{dir_emoji} ACTION: <b>{action_text}</b>\n"
-        f"⏰ ENTRY: <code>{entry_str}</code>\n"
-        f"⌛ EXPIRY: <b>1 MINUTE</b>\n"
-        f"🛡 STRATEGY: <b>MAX 1-STEP MTG</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⚠️ <i>Wait for exact 00-second candle open</i>"
+        f"═══════════════════════\n"
+        f"🌐 <b>MARKET:</b> <code>{market_label}</code>\n"
+        f"🪙 <b>ASSET:</b> <code>{clean_pair}</code>\n"
+        f"⚡ <b>CONFIDENCE:</b> <code>{confidence}% [EXPERT GRADE]</code>\n"
+        f"🧠 <b>ALGORITHM:</b> <code>{algorithm_tag}</code>\n"
+        f"🌐 <b>TIMEZONE:</b> <code>{tz_str} (Synced)</code>\n"
+        f"═══════════════════════\n"
+        f"{dir_emoji} <b>DIRECTION:</b> <b>{dir_text}</b>\n"
+        f"⏰ <b>ENTRY TIME:</b> <code>{entry_str}</code>\n"
+        f"⌛ <b>DURATION:</b> <b>1 MINUTE</b>\n"
+        f"🛡 <b>RISK PLAN:</b> <b>MAX 1-STEP MTG</b>\n"
+        f"═══════════════════════\n"
+        f"💎 <i>Status: Secured & Locked for Execution</i>"
     )
 
 def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins, losses, win_rate, market_label="QUOTEX OTC"):
@@ -803,8 +795,7 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
     sign = "+" if tz_offset >= 0 else ""
     tz_str = f"UTC{sign}{int(tz_offset)}:00"
 
-    scanner_card = build_radar_scanner_card(clean_pair, confidence, tz_str, algorithm_tag, market_label)
-    ticket_card = build_execution_ticket_card(clean_pair, dir_action, entry_str, market_label)
+    combined_card = build_vip_combined_card(clean_pair, direction, confidence, tz_str, algorithm_tag, entry_str, market_label)
     
     kb = None
     if not is_channel_session:
@@ -824,9 +815,7 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
     if scan_msg_id:
         bot_instance.delete_message(scan_msg_id)
 
-    bot_instance.send_message(scanner_card)
-    time.sleep(0.4)
-    bot_instance.send_message(ticket_card, reply_markup=kb)
+    bot_instance.send_message(combined_card, reply_markup=kb)
     
     return {
         "entry_dt": entry_dt,
@@ -931,28 +920,40 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
         m_label = "QUOTEX OTC"
 
     now_time = datetime.now(user_tz)
+    
+    # Send immediate Schedule Confirmation message to target channel
+    start_time_str = start_dt.strftime("%H:%M")
+    confirm_msg = (
+        f"📢 <b>VIP SIGNAL SESSION SCHEDULED!</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"🎯 <b>Target Market:</b> <code>{m_label}</code>\n"
+        f"⏰ <b>Start Time:</b> <code>{start_time_str}</code>\n"
+        f"💎 <b>Status:</b> <code>Session saved successfully. Prepare your accounts!</code>\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"👑 <b>{BOT_TITLE} VIP</b> 👑"
+    )
+    sent_confirm = bot_channel.send_message(confirm_msg)
+    if not sent_confirm:
+        bot_admin.send_message(
+            f"⚠️ <b>Schedule Warning:</b> Could not post session alert to <code>{target_channel}</code>. "
+            "Make sure the bot is an <b>Admin</b> in that channel with 'Post Messages' permission."
+        )
+
+    # Wait until 30 minutes prior to session start for the 30-min reminder alert
     if now_time < alert_dt:
         while datetime.now(user_tz) < alert_dt:
             time.sleep(5)
             
-        start_time_str = start_dt.strftime("%H:%M")
-        stop_time_str = end_dt.strftime("%H:%M")
-        alert_msg = (
-            f"📢 <b>VIP SIGNAL SESSION SCHEDULED!</b>\n"
+        reminder_msg = (
+            f"⚠️ <b>REMINDER: VIP SESSION STARTS IN 30 MINUTES!</b>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"🎯 <b>Target Market:</b> <code>{m_label}</code>\n"
             f"⏰ <b>Start Time:</b> <code>{start_time_str}</code>\n"
-            f"⏰ <b>STOP Time:</b> <code>{stop_time_str}</code>\n"
-            f"💎 <b>Status:</b> <code>Waiting for session start... Prepare your accounts!</code>\n"
+            f"🚀 <i>Get ready! Our high-accuracy Quantum Flow signal engine will launch automatically in 30 minutes.</i>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"👑 <b>{BOT_TITLE} VIP</b> 👑"
         )
-        sent_id = bot_channel.send_message(alert_msg)
-        if not sent_id:
-            bot_admin.send_message(
-                f"⚠️ <b>Schedule Warning:</b> Could not post session alert to <code>{target_channel}</code>. "
-                "Make sure the bot is an <b>Admin</b> in that channel with 'Post Messages' permission."
-            )
+        bot_channel.send_message(reminder_msg)
     
     while datetime.now(user_tz) < start_dt:
         time.sleep(2)
@@ -1809,7 +1810,7 @@ def run_server():
 
                             TelegramBot(chat_id=chat_id).send_message(f"<b>[:] AUTO MODE ACTIVATED ({b_type.upper()}) ✅</b>", reply_markup={"inline_keyboard": [[{"text": "🛑 STOP AUTO", "callback_data": "auto_btn:stop"}]]})
                             threading.Thread(target=auto_mode_loop, args=(chat_id, username, b_type), daemon=True).start()
-                        elif cb_data == "auto_btn:stop":
+                        elif cb_data == "proto_btn:stop" or cb_data == "auto_btn:stop":
                             auto_mode_users[str(chat_id)] = False
                             TelegramBot(chat_id=chat_id).send_message("🛑 <b>Auto Signal Mode Stopped.</b>", reply_markup={"inline_keyboard": [[{"text": "▶️ RESTART AUTO", "callback_data": "menu:auto_market_select"}], [{"text": "🏠 HOME MENU", "callback_data": "back_to_menu"}]]})
                         elif cb_data.startswith("auto_btn:analysis:"):
@@ -1862,7 +1863,7 @@ def run_server():
                             )
                             edit_or_send(chat_id, summary_text, {"inline_keyboard": [[{"text": "🔙 Back", "callback_data": "back_to_menu"}]]}, msg_id)
                         elif cb_data == "menu:support":
-                            TelegramBot(chat_id=chat_id).send_message(f"📞 <b>SUPPORT</b>\n\nAdmin: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\nBot Handle: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>")
+                            TelegramBot(chat_id=chat_id).send_message(f"📞 <b>SUPPORT</b>\n\nAdmin: <a href=\"{Telegram_URL_HANDLE if 'Telegram_URL_HANDLE' in globals() else TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\nBot Handle: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>")
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "menu:about":
                             TelegramBot(chat_id=chat_id).send_message(f"ℹ️ <b>ABOUT</b>\n\n{BOT_TITLE} — VIP Signal Bot V1.")
