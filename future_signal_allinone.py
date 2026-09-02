@@ -7,7 +7,7 @@
 - Instant Schedule Confirmation + 30-Minute Prior VIP Alert Notification in Target Channel
 - Fixed & Accurate API URL Formats for Quotex (-OTCq), Pocket Option (-OTCp), and Real Market (frx)
 - Strict Admin/Operator-Only Access for Schedule Mode (Hidden from Free Users)
-- Stylish VIP Daily Limit Exceeded Notification
+- Stylish VIP Daily Limit Exceeded Notification (Fully English)
 - Clean Message Deletion, Single-Thread Lock & Consistent Market Labeling
 """
 
@@ -684,22 +684,22 @@ def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins
         mtg_status = "<code>FAILED</code>"
 
     return (
-        f"👑 <b>{BOT_TITLE}</b> 👑\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"🏆 <b>OFFICIAL RESULT UPDATE</b> 🏆\n\n"
-        f"🌐 <b>Market:</b> <code>{market_label}</code>\n"
-        f"🪙 <b>Asset:</b> <code>{clean_pair}</code>\n"
-        f"🎯 <b>Trade:</b> {trade_call_text}\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"🎉 <b>RESULT:</b> {result_title}\n"
-        f"📈 <b>Profit:</b> {profit_status}\n"
-        f"🛡 <b>Martingale:</b> {mtg_status}\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"🧮 <b>TOTAL SCORE</b> ➔ 🟢 <b>{wins} WIN</b> ┃ 🔴 <b>{losses} LOSS</b>\n"
-        f"🎯 <b>ACCURACY:</b> <b>({win_rate:.1f}%)</b>\n"
-        f"✈️ <b>TELEGRAM:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"👑 <b>{BOT_TITLE} VIP</b> 👑"
+        f"───────────────✦───────────────\n"
+        f" 🔥 <b>VIP TRADE RESULT UPDATE</b> 🔥\n"
+        f"───────────────✦───────────────\n"
+        f" 🌐 <b>Market:</b> <code>{market_label}</code>\n"
+        f" 🪙 <b>Asset:</b> <code>{clean_pair}</code>\n"
+        f" 🎯 <b>Trade:</b> {trade_call_text}\n"
+        f"───────────────✦───────────────\n"
+        f" 🏆 <b>Status:</b> {result_title}\n"
+        f" 💰 <b>Profit:</b> {profit_status}\n"
+        f" 🛡 <b>MTG:</b> {mtg_status}\n"
+        f"───────────────✦───────────────\n"
+        f" 🧮 <b>Score:</b> 🟢 <b>{wins} WIN</b> | 🔴 <b>{losses} LOSS</b>\n"
+        f" 🎯 <b>Accuracy:</b> <b>{win_rate:.1f}%</b>\n"
+        f"───────────────✦───────────────\n"
+        f" 👑 <b>{BOT_TITLE} VIP</b>\n"
+        f"───────────────✦───────────────"
     )
 
 def build_maintenance_card():
@@ -710,7 +710,7 @@ def build_maintenance_card():
         "⚙️ <b>Reason:</b> <code>System Optimization & Algorithm Update</code>\n"
         "⏳ <b>Signal Engine:</b> <code>Offline for Security & Accuracy</code>\n"
         "━━━━━━━━━━━━━━━━━━━\n"
-        "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n\n"
+        "📢 <i>System is under routine optimization. The bot will automatically resume shortly.</i>\n\n"
         f"💬 <b>Admin Support:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
         f"👑 <b>{BOT_TITLE} VIP</b> 👑"
     )
@@ -736,13 +736,13 @@ def build_limit_exceeded_card():
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"🟥 <b>DAILY SIGNAL LIMIT REACHED!</b> 🟥\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⚠️ দুঃখিত! আজকের জন্য আপনার ফ্রি অটো সিগন্যাল লিমিট শেষ হয়ে গেছে।\n\n"
-        f"💎 <b>আনলিমিটেড সিগন্যাল ও প্রিমিয়াম ফিচারের জন্য ভিআইপি (VIP) মেম্বারশিপ নিন:</b>\n"
-        f"• ♾ আনলিমিটেড অটো সিগন্যাল ইঞ্জিন\n"
-        f"• 🔮 আনলিমিটেড ফিউচার মোড লার্জ ব্যাচ\n"
-        f"• ⚡ রিয়েল-টাইম লাইভ ক্যান্ডেল সিঙ্ক ও ফুল রিস্ক প্রোটেকশন\n\n"
+        f"⚠️ Sorry! Your free daily auto signal limit has been reached for today.\n\n"
+        f"💎 <b>Upgrade to VIP Membership for Unlimited Access:</b>\n"
+        f"• ♾ Unlimited Auto Signal Engine\n"
+        f"• 🔮 Unlimited Future Mode Large Batches\n"
+        f"• ⚡ Real-Time Live Candle Sync & Full Risk Protection\n\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"💬 <b>VIP এক্সেস বা আপগ্রেডের জন্য যোগাযোগ করুন:</b>\n"
+        f"💬 <b>Contact for VIP Access & Upgrades:</b>\n"
         f"👉 <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
         f"👑 <b>{BOT_TITLE} VIP</b> 👑"
@@ -1540,7 +1540,7 @@ def run_server():
                                     "⏳ <b>Expected Time:</b> <code>Few Minutes</code>\n"
                                     "🔒 <b>Signals:</b> <code>Temporarily Paused</code>\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
-                                    "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n\n"
+                                    "📢 <i>System is under routine optimization. The bot will automatically resume shortly.</i>\n\n"
                                     f"💬 <b>Admin Support:</b> <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
                                     f"👑 <b>{BOT_TITLE} VIP</b> 👑"
                                 )
@@ -1704,7 +1704,7 @@ def run_server():
                                     "⏳ <b>Expected Time:</b> <code>Few Minutes</code>\n"
                                     "🔒 <b>Signals:</b> <code>Temporarily Paused</code>\n"
                                     "━━━━━━━━━━━━━━━━━━━\n"
-                                    "📢 <i>আমরা বটের নির্ভুলতা ও স্পিড বাড়ানোর জন্য কাজ করছি। কাজ শেষ হওয়া মাত্রই বট স্বয়ংক্রিয়ভাবে আবার সবার জন্য চালু হয়ে যাবে।</i>\n\n"
+                                    "📢 <i>System is under routine optimization. The bot will automatically resume shortly.</i>\n\n"
                                     f"👑 <b>{BOT_TITLE} VIP</b> 👑"
                                 )
                                 broadcast_to_all_users(maint_msg)
@@ -1804,21 +1804,58 @@ def run_server():
                         elif cb_data.startswith("auto_start:"):
                             b_type = cb_data.split(":")[-1]
                             
+                            is_vip = is_vip_user(chat_id, username)
+                            user_tz, _ = get_user_tz(chat_id)
+                            used_today = get_user_daily_usage(chat_id, user_tz)
+                            if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
+                                kb = {
+                                    "inline_keyboard": [
+                                        {"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"},
+                                        {"text": "🏠 HOME", "callback_data": "back_to_menu"}
+                                    ]
+                                }
+                                TelegramBot(chat_id=chat_id).send_message(build_limit_exceeded_card(), reply_markup=kb)
+                                continue
+
                             auto_mode_users[str(chat_id)] = False
                             time.sleep(0.3)
                             auto_mode_users[str(chat_id)] = True
 
-                            TelegramBot(chat_id=chat_id).send_message(f"<b>[:] AUTO MODE ACTIVATED ({b_type.upper()}) ✅</b>", reply_markup={"inline_keyboard": [[{"text": "🛑 STOP AUTO", "callback_data": "auto_btn:stop"}]]})
+                            TelegramBot(chat_id=chat_id).send_message(f"<b>[⚙️] AUTO MODE ACTIVATED ({b_type.upper()}) ✅</b>", reply_markup={"inline_keyboard": [[{"text": "🛑 STOP AUTO", "callback_data": "auto_btn:stop"}]]})
                             threading.Thread(target=auto_mode_loop, args=(chat_id, username, b_type), daemon=True).start()
                         elif cb_data == "proto_btn:stop" or cb_data == "auto_btn:stop":
                             auto_mode_users[str(chat_id)] = False
                             TelegramBot(chat_id=chat_id).send_message("🛑 <b>Auto Signal Mode Stopped.</b>", reply_markup={"inline_keyboard": [[{"text": "▶️ RESTART AUTO", "callback_data": "menu:auto_market_select"}], [{"text": "🏠 HOME MENU", "callback_data": "back_to_menu"}]]})
                         elif cb_data.startswith("auto_btn:analysis:"):
                             b_type = cb_data.split(":")[-1]
+                            is_vip = is_vip_user(chat_id, username)
+                            user_tz, _ = get_user_tz(chat_id)
+                            used_today = get_user_daily_usage(chat_id, user_tz)
+                            if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
+                                kb = {
+                                    "inline_keyboard": [
+                                        {"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"},
+                                        {"text": "🏠 HOME", "callback_data": "back_to_menu"}
+                                    ]
+                                }
+                                TelegramBot(chat_id=chat_id).send_message(build_limit_exceeded_card(), reply_markup=kb)
+                                continue
                             deliver_auto_signal(chat_id, username=username, broker_type=b_type)
                         elif cb_data == "auto_btn:analysis":
                             deliver_auto_signal(chat_id, username=username, broker_type="quotex")
                         elif cb_data == "auto_btn:next":
+                            is_vip = is_vip_user(chat_id, username)
+                            user_tz, _ = get_user_tz(chat_id)
+                            used_today = get_user_daily_usage(chat_id, user_tz)
+                            if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
+                                kb = {
+                                    "inline_keyboard": [
+                                        {"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"},
+                                        {"text": "🏠 HOME", "callback_data": "back_to_menu"}
+                                    ]
+                                }
+                                TelegramBot(chat_id=chat_id).send_message(build_limit_exceeded_card(), reply_markup=kb)
+                                continue
                             deliver_auto_signal(chat_id, username=username, broker_type="quotex")
                         elif cb_data == "auto_btn:partial":
                             user_tz, _ = get_user_tz(chat_id)
@@ -1863,7 +1900,7 @@ def run_server():
                             )
                             edit_or_send(chat_id, summary_text, {"inline_keyboard": [[{"text": "🔙 Back", "callback_data": "back_to_menu"}]]}, msg_id)
                         elif cb_data == "menu:support":
-                            TelegramBot(chat_id=chat_id).send_message(f"📞 <b>SUPPORT</b>\n\nAdmin: <a href=\"{Telegram_URL_HANDLE if 'Telegram_URL_HANDLE' in globals() else TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\nBot Handle: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>")
+                            TelegramBot(chat_id=chat_id).send_message(f"📞 <b>SUPPORT</b>\n\nAdmin: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\nBot Handle: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>")
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "menu:about":
                             TelegramBot(chat_id=chat_id).send_message(f"ℹ️ <b>ABOUT</b>\n\n{BOT_TITLE} — VIP Signal Bot V1.")
