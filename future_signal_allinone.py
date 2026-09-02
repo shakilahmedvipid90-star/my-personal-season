@@ -1,9 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/init/env python3
 """
 👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
 - Advanced Neural Trend & Quantum Flow Engine (RSI + EMA Crossovers + Volatility Filter)
 - Dedicated Market Selection for Schedule Mode (Real, Quotex OTC, Pocket Option OTC)
 - Fixed & Accurate API URL Formats for Quotex (-OTCq), Pocket Option (-OTCp), and Real Market (frx)
+- Strict Admin/Operator-Only Access for Schedule Mode (Hidden from Free Users)
 - Stop Time Display & Instant Channel Alert on Schedule Setup
 - Stylish VIP Daily Limit Exceeded Notification
 - Clean Message Deletion, Single-Thread Lock & Consistent Market Labeling
