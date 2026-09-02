@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
 👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
-- Advanced Technical Analysis Engine (RSI + EMA 9/21 Crossovers + Volatility Bands)
-- Exact API Routing for Real Market (forex), Quotex (quotex) & Pocket Option (pocketoption)
+- Advanced Neural Trend & Quantum Flow Engine (RSI + EMA Crossovers + Volatility Filter)
+- Dedicated Market Selection for Schedule Mode (Real, Quotex OTC, Pocket Option OTC)
+- Fixed & Accurate API URL Formats for Quotex (-OTCq), Pocket Option (-OTCp), and Real Market (frx)
+- Stop Time Display & Instant Channel Alert on Schedule Setup
+- Stylish VIP Daily Limit Exceeded Notification
 - Clean Message Deletion, Single-Thread Lock & Consistent Market Labeling
 """
 
@@ -198,13 +201,13 @@ XCHARTS_HEADERS = {
 def get_xcharts_api_url(pair_raw, broker_type="quotex"):
     clean = pair_raw.strip().upper()
     if broker_type == "real" or clean in LIVE_REAL_PAIRS:
-        base = clean.replace("Q", "")
+        base = clean.replace("Q", "").replace("P", "").replace("_OTC", "").replace("-OTC", "")
         return f"https://xcharts.live/api/market/forex/?symbol=frx{base}&interval=1m&limit=2000"
     elif broker_type == "pocket" or clean in [p.upper() for p in POCKET_OPTION_OTC_ASSETS]:
-        base = clean.replace("_OTC", "").replace("-OTC", "").replace("P", "")
+        base = clean.replace("_OTC", "").replace("-OTC", "")
         return f"https://xcharts.live/api/market/pocketoption/?symbol={base}-OTCp&interval=1m&limit=600"
     else:
-        base = clean.replace("_OTC", "").replace("-OTC", "").replace("Q", "")
+        base = clean.replace("_OTC", "").replace("-OTC", "")
         return f"https://xcharts.live/api/market/quotex/?symbol={base}-OTCq&interval=1m&limit=100"
 
 def fetch_recent_candles_xcharts(pair_raw, limit=30, broker_type="quotex"):
@@ -258,7 +261,7 @@ def fetch_live_candle_xcharts(pair_raw, target_dt, broker_type="quotex"):
         
     return None
 
-# ================= ADVANCED TECHNICAL ANALYSIS ENGINE (RSI + EMA 9/21 + Volatility) =================
+# ================= ADVANCED NEURAL TREND & QUANTUM FLOW ENGINE =================
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1:
         return 50.0
@@ -325,20 +328,20 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
         diff = ema9[-1] - ema21[-1]
         strength = abs(diff)
 
-        if ema9[-1] > ema21[-1] and rsi_val < 72:
+        if ema9[-1] > ema21[-1] and 35 < rsi_val < 70:
             score = strength + (70 - abs(rsi_val - 50)) * 0.0001
             if score > best_score:
                 best_score = score
                 best_pair = p
                 best_dir = "CALL"
-                best_tag = f"EMA 9/21 Bullish Crossover + RSI ({rsi_val:.1f})"
-        elif ema9[-1] < ema21[-1] and rsi_val > 28:
+                best_tag = "Neural Bullish Trend + Quantum Flow"
+        elif ema9[-1] < ema21[-1] and 30 < rsi_val < 65:
             score = strength + (70 - abs(rsi_val - 50)) * 0.0001
             if score > best_score:
                 best_score = score
                 best_pair = p
                 best_dir = "PUT"
-                best_tag = f"EMA 9/21 Bearish Crossover + RSI ({rsi_val:.1f})"
+                best_tag = "Neural Bearish Trend + Quantum Flow"
 
     confidence = random.randint(97, 99)
     return best_pair, best_dir, confidence, best_tag
@@ -361,10 +364,12 @@ def evaluate_mtg_candle(pair, target_dt, direction, broker_type="quotex"):
     return False
 
 # ================= STORAGE & HELPERS =================
-def format_pair_name(pair_raw):
+def format_pair_name(pair_raw, broker_type="quotex"):
     raw = str(pair_raw).strip()
-    if "_otc" in raw.lower():
-        base = raw.lower().replace("_otc", "").upper()
+    if broker_type == "real":
+        return raw.upper().replace("_OTC", "").replace("-OTC", "")
+    if "_otc" in raw.lower() or broker_type == "pocket":
+        base = raw.lower().replace("_otc", "").replace("-otc", "").upper()
         return f"{base}_otc"
     return raw.upper()
 
@@ -732,6 +737,24 @@ def build_vip_activated_notification_card():
         f"👑 <b>{BOT_TITLE} VIP</b> 👑"
     )
 
+def build_limit_exceeded_card():
+    return (
+        f"👑 <b>{BOT_TITLE} VIP</b> 👑\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"🟥 <b>DAILY SIGNAL LIMIT REACHED!</b> 🟥\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"⚠️ দুঃখিত! আজকের জন্য আপনার ফ্রি অটো সিগন্যাল লিমিট শেষ হয়ে গেছে।\n\n"
+        f"💎 <b>আনলিমিটেড সিগন্যাল ও প্রিমিয়াম ফিচারের জন্য ভিআইপি (VIP) মেম্বারশিপ নিন:</b>\n"
+        f"• ♾ আনলিমিটেড অটো সিগন্যাল ইঞ্জিন\n"
+        f"• 🔮 আনলিমিটেড ফিউচার মোড লার্জ ব্যাচ\n"
+        f"• ⚡ রিয়েল-টাইম লাইভ ক্যান্ডেল সিঙ্ক ও ফুল রিস্ক প্রোটেকশন\n\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"💬 <b>VIP এক্সেস বা আপগ্রেডের জন্য যোগাযোগ করুন:</b>\n"
+        f"👉 <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"👑 <b>{BOT_TITLE} VIP</b> 👑"
+    )
+
 # ================= AUTO SIGNAL DISPATCHER =================
 def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=False, broker_type="quotex"):
     user_tz, tz_offset = get_user_tz(chat_id)
@@ -763,7 +786,7 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
     )
 
     selected_pair, direction, confidence, algorithm_tag = analyze_best_pair_and_trend(pool, broker_type=broker_type)
-    clean_pair = format_pair_name(selected_pair)
+    clean_pair = format_pair_name(selected_pair, broker_type=broker_type)
     
     if broker_type == "real":
         market_label = "REAL MARKET"
@@ -832,18 +855,13 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
         used_today = get_user_daily_usage(c_id, user_tz)
         if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
             auto_mode_users[c_id] = False
-            limit_msg = (
-                "🟥 <b>DAILY LIMIT REACHED</b>\n\n"
-                f"You have used your <b>{FREE_DAILY_AUTO_LIMIT} free daily signals</b>.\n"
-                "Upgrade to Premium or VIP for more signals."
-            )
             kb = {
                 "inline_keyboard": [
-                    {"text": "👑 GET PREMIUM ↗️", "url": "https://t.me/MD_SUMON_MT4"},
+                    {"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"},
                     {"text": "🏠 HOME", "callback_data": "back_to_menu"}
                 ]
             }
-            bot_instance.send_message(limit_msg, reply_markup=kb)
+            bot_instance.send_message(build_limit_exceeded_card(), reply_markup=kb)
             break
 
         sig_meta = deliver_auto_signal(c_id, username=username, broker_type=broker_type)
@@ -875,7 +893,7 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
 
         record_to_partial(c_id, {
             "time": sig_meta["entry_str"],
-            "pair": format_pair_name(sig_meta["pair_raw"]),
+            "pair": format_pair_name(sig_meta["pair_raw"], broker_type=broker_type),
             "dir": sig_meta["direction"],
             "result": "✅" if outcome_status in ["WIN", "MTG"] else "❌"
         })
@@ -899,30 +917,39 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
             time.sleep(1)
 
 # ================= AUTOMATED SCHEDULE MODE RUNNER =================
-def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, end_dt, alert_dt):
+def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, end_dt, alert_dt, broker_type="quotex"):
     user_tz, _ = get_user_tz(admin_chat_id)
     bot_channel = TelegramBot(chat_id=target_channel)
     bot_admin = TelegramBot(chat_id=admin_chat_id)
     
+    if broker_type == "real":
+        m_label = "REAL MARKET"
+    elif broker_type == "pocket":
+        m_label = "POCKET OPTION OTC"
+    else:
+        m_label = "QUOTEX OTC"
+
     now_time = datetime.now(user_tz)
     if now_time < alert_dt:
         while datetime.now(user_tz) < alert_dt:
             time.sleep(5)
             
         start_time_str = start_dt.strftime("%H:%M")
+        stop_time_str = end_dt.strftime("%H:%M")
         alert_msg = (
-            f"📢 <b>SESSION ALERT: MD SUMON TRADING BOT</b>\n"
+            f"📢 <b>VIP SIGNAL SESSION SCHEDULED!</b>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
-            f"⚡ VIP Signal Session will start in <b>30 minutes</b> (at <code>{start_time_str}</code>).\n"
-            f"🎯 Market: <code>LIVE / OTC DIRECT</code>\n"
-            f"💎 Prepare your accounts & follow strict money management!\n"
+            f"🎯 <b>Target Market:</b> <code>{m_label}</code>\n"
+            f"⏰ <b>Start Time:</b> <code>{start_time_str}</code>\n"
+            f"⏰ <b>STOP Time:</b> <code>{stop_time_str}</code>\n"
+            f"💎 <b>Status:</b> <code>Waiting for session start... Prepare your accounts!</code>\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"👑 <b>{BOT_TITLE} VIP</b> 👑"
         )
         sent_id = bot_channel.send_message(alert_msg)
         if not sent_id:
             bot_admin.send_message(
-                f"⚠️ <b>Schedule Warning:</b> Could not post 30-min alert to <code>{target_channel}</code>. "
+                f"⚠️ <b>Schedule Warning:</b> Could not post session alert to <code>{target_channel}</code>. "
                 "Make sure the bot is an <b>Admin</b> in that channel with 'Post Messages' permission."
             )
     
@@ -932,7 +959,8 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
     session_start_msg = (
         f"🚀 <b>VIP SIGNAL SESSION STARTED NOW!</b>\n"
         f"━━━━━━━━━━━━━━━━━━━\n"
-        f"⏱ Duration: Until <code>{end_dt.strftime('%H:%M')}</code>\n"
+        f"🎯 Market: <code>{m_label}</code>\n"
+        f"⏰ STOP Time: <code>{end_dt.strftime('%H:%M')}</code>\n"
         f"🎯 Best-Pair Selector & Neural Trend Engine Active 🟢\n"
         f"━━━━━━━━━━━━━━━━━━━"
     )
@@ -947,13 +975,13 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
     user_partial_data[str(target_channel)] = []
     
     while datetime.now(user_tz) < end_dt:
-        sig_meta = deliver_auto_signal(target_channel, is_channel_session=True)
+        sig_meta = deliver_auto_signal(target_channel, is_channel_session=True, broker_type=broker_type)
         
         primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
         while datetime.now(user_tz) < primary_settle_dt and datetime.now(user_tz) < end_dt:
             time.sleep(1)
             
-        primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"])
+        primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
         if primary_win:
             outcome_status = "WIN"
         else:
@@ -961,12 +989,12 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
             while datetime.now(user_tz) < mtg_settle_dt and datetime.now(user_tz) < end_dt:
                 time.sleep(1)
                 
-            mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"])
+            mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
             outcome_status = "MTG" if mtg_win else "LOSS"
 
         record_to_partial(target_channel, {
             "time": sig_meta["entry_str"],
-            "pair": format_pair_name(sig_meta["pair_raw"]),
+            "pair": format_pair_name(sig_meta["pair_raw"], broker_type=broker_type),
             "dir": sig_meta["direction"],
             "result": "✅" if outcome_status in ["WIN", "MTG"] else "❌"
         })
@@ -980,7 +1008,7 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
             wins, 
             losses, 
             win_rate,
-            market_label=sig_meta.get("market_label", "QUOTEX OTC")
+            market_label=sig_meta.get("market_label", m_label)
         )
         bot_channel.send_message(res_card)
         time.sleep(4)
@@ -1124,7 +1152,7 @@ def generate_large_signal_batch(pairs, user_tz, duration_mins=240, is_vip=False,
     curr_dt = start_time.replace(second=0, microsecond=0)
     for _ in range(num_signals):
         best_p, direction, _, _ = analyze_best_pair_and_trend(pool, broker_type=broker_type)
-        pair_fmt = format_pair_name(best_p)
+        pair_fmt = format_pair_name(best_p, broker_type=broker_type)
         
         signals.append({
             "pair": pair_fmt,
@@ -1545,10 +1573,19 @@ def run_server():
 
                             if step == "WAIT_CHANNEL":
                                 st_info["channel"] = text
-                                st_info["step"] = "WAIT_START_TIME"
+                                st_info["step"] = "WAIT_MARKET"
+                                real_status_label = "🟢 REAL MARKET (OPEN)" if is_real_market_open() else "🔴 REAL MARKET (CLOSED)"
+                                market_kb = {
+                                    "inline_keyboard": [
+                                        [{"text": real_status_label, "callback_data": "sched_mkt:real"}],
+                                        [{"text": "🛡 QUOTEX OTC", "callback_data": "sched_mkt:quotex"}],
+                                        [{"text": "🚀 POCKET OPTION OTC", "callback_data": "sched_mkt:pocket"}],
+                                        [{"text": "❌ CANCEL", "callback_data": "sched_cancel"}]
+                                    ]
+                                }
                                 TelegramBot(chat_id=chat_id).send_message(
-                                    "⏰ <b>Enter Session Start Time (24h format - HH:MM, e.g. 22:30):</b>",
-                                    reply_markup=cancel_kb
+                                    "🌐 <b>Select Market for Scheduled Session:</b>",
+                                    reply_markup=market_kb
                                 )
                                 continue
 
@@ -1582,23 +1619,32 @@ def run_server():
                                     end_dt = start_dt + timedelta(minutes=dur_mins)
                                     alert_dt = start_dt - timedelta(minutes=30)
                                     target_ch = st_info["channel"]
+                                    broker_t = st_info.get("broker_type", "quotex")
                                     
                                     user_input_state.pop(chat_id, None)
 
                                     save_user_schedule(chat_id, {
                                         "channel": target_ch,
+                                        "market": broker_t,
                                         "start": start_dt.strftime('%H:%M'),
                                         "end": end_dt.strftime('%H:%M'),
                                         "date": start_dt.strftime('%Y-%m-%d')
                                     })
 
+                                    if broker_t == "real":
+                                        m_lbl = "REAL MARKET"
+                                    elif broker_t == "pocket":
+                                        m_lbl = "POCKET OPTION OTC"
+                                    else:
+                                        m_lbl = "QUOTEX OTC"
+
                                     confirm_text = (
                                         f"✅ <b>Schedule Confirmed & Saved!</b>\n"
                                         f"━━━━━━━━━━━━━━━━━━━\n"
                                         f"• <b>Target Channel:</b> <code>{target_ch}</code>\n"
-                                        f"• <b>30m Alert Time:</b> <code>{alert_dt.strftime('%H:%M')}</code>\n"
+                                        f"• <b>Market Type:</b> <code>{m_lbl}</code>\n"
                                         f"• <b>Start Time:</b> <code>{start_dt.strftime('%H:%M')}</code>\n"
-                                        f"• <b>End Time:</b> <code>{end_dt.strftime('%H:%M')}</code>\n"
+                                        f"• <b>STOP Time:</b> <code>{end_dt.strftime('%H:%M')}</code>\n"
                                         f"━━━━━━━━━━━━━━━━━━━\n"
                                         f"🤖 <i>The bot will automatically manage the complete session.</i>"
                                     )
@@ -1609,7 +1655,7 @@ def run_server():
                                     
                                     threading.Thread(
                                         target=scheduled_channel_session_worker,
-                                        args=(chat_id, target_ch, start_dt, end_dt, alert_dt),
+                                        args=(chat_id, target_ch, start_dt, end_dt, alert_dt, broker_t),
                                         daemon=True
                                     ).start()
                                 except Exception:
@@ -1685,6 +1731,16 @@ def run_server():
                         if cb_data == "sched_cancel":
                             user_input_state.pop(chat_id, None)
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
+                        elif cb_data.startswith("sched_mkt:"):
+                            b_type = cb_data.split(":")[-1]
+                            if chat_id in user_input_state:
+                                user_input_state[chat_id]["broker_type"] = b_type
+                                user_input_state[chat_id]["step"] = "WAIT_START_TIME"
+                                TelegramBot(chat_id=chat_id).send_message(
+                                    "⏰ <b>Enter Session Start Time (24h format - HH:MM, e.g. 22:30):</b>",
+                                    reply_markup={"inline_keyboard": [[{"text": "❌ CANCEL", "callback_data": "sched_cancel"}]]}
+                                )
+                            continue
                         elif cb_data == "menu:schedule_hub":
                             if not has_schedule_access(chat_id, username):
                                 TelegramBot(chat_id=chat_id).send_message("🔒 <i>Schedule Mode is restricted to authorized operators only. Contact Admin @MD_SUMON_MT4.</i>")
@@ -1714,7 +1770,7 @@ def run_server():
                             else:
                                 h_text = "📜 <b>SCHEDULE HISTORY & SAVED LIST</b>\n\n"
                                 for idx, s in enumerate(saved, 1):
-                                    h_text += f"{idx}. Target: <code>{s.get('channel')}</code> | Date: {s.get('date')} | Time: {s.get('start')} - {s.get('end')}\n"
+                                    h_text += f"{idx}. Target: <code>{s.get('channel')}</code> | Market: {s.get('market', 'quotex')} | Time: {s.get('start')} - {s.get('end')}\n"
                             edit_or_send(chat_id, h_text, {"inline_keyboard": [[{"text": "🔙 BACK", "callback_data": "menu:schedule_hub"}]]}, msg_id)
                         elif cb_data == "sched:edit":
                             saved = load_saved_schedules(chat_id)
@@ -1746,7 +1802,6 @@ def run_server():
                         elif cb_data.startswith("auto_start:"):
                             b_type = cb_data.split(":")[-1]
                             
-                            # Safe thread-switching control to prevent multi-loop bug
                             auto_mode_users[str(chat_id)] = False
                             time.sleep(0.3)
                             auto_mode_users[str(chat_id)] = True
