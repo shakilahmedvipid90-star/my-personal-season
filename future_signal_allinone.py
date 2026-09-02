@@ -3,7 +3,7 @@
 👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
 - Advanced Technical Analysis Engine (RSI + EMA 9/21 Crossovers + Volatility Bands)
 - Exact API Routing for Real Market (forex), Quotex (quotex) & Pocket Option (pocketoption)
-- Clean Message Deletion & Consistent Market Labeling
+- Clean Message Deletion, Single-Thread Lock & Consistent Market Labeling
 """
 
 import os
@@ -261,7 +261,7 @@ def fetch_live_candle_xcharts(pair_raw, target_dt, broker_type="quotex"):
 # ================= ADVANCED TECHNICAL ANALYSIS ENGINE (RSI + EMA 9/21 + Volatility) =================
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1:
-        return 50.0  # Default neutral
+        return 50.0
     gains = []
     losses = []
     for i in range(1, len(prices)):
@@ -309,38 +309,30 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
             
         candidates_checked += 1
         closes = [float(c["close"]) for c in candles]
-        highs = [float(c["high"]) for c in candles]
-        lows = [float(c["low"]) for c in candles]
-
-        # 1. EMA 9/21 Crossover calculation
+        
         ema9 = calculate_ema(closes, 9)
         ema21 = calculate_ema(closes, 21)
-        
-        # 2. RSI Calculation (Period 14)
         rsi_val = calculate_rsi(closes, 14)
 
-        # 3. Volatility / Bollinger Band width check to avoid choppy markets
         sma20 = sum(closes[-20:]) / 20
         variance = sum([(x - sma20) ** 2 for x in closes[-20:]]) / 20
         std_dev = variance ** 0.5
         band_width = (std_dev * 2) / sma20 if sma20 > 0 else 0.01
 
-        # Skip low volatility or extreme noise
         if band_width < 0.0002:
             continue
 
         diff = ema9[-1] - ema21[-1]
         strength = abs(diff)
 
-        # Filter criteria for high accuracy
-        if ema9[-1] > ema21[-1] and rsi_val < 72:  # Bullish confirmation
+        if ema9[-1] > ema21[-1] and rsi_val < 72:
             score = strength + (70 - abs(rsi_val - 50)) * 0.0001
             if score > best_score:
                 best_score = score
                 best_pair = p
                 best_dir = "CALL"
                 best_tag = f"EMA 9/21 Bullish Crossover + RSI ({rsi_val:.1f})"
-        elif ema9[-1] < ema21[-1] and rsi_val > 28:  # Bearish confirmation
+        elif ema9[-1] < ema21[-1] and rsi_val > 28:
             score = strength + (70 - abs(rsi_val - 50)) * 0.0001
             if score > best_score:
                 best_score = score
@@ -762,7 +754,6 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
 
     bot_instance = TelegramBot(chat_id=chat_id)
     
-    # Send scanning loading message with auto-delete effect
     scan_msg_id = bot_instance.send_message(
         "╭──────────────────────╮\n"
         "│ 🧠 <b>HISTORICAL SCAN INITIATED</b> 🔮\n"
@@ -806,7 +797,6 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
             ]
         }
     
-    # Delete scan loading message immediately before sending final cards
     if scan_msg_id:
         bot_instance.delete_message(scan_msg_id)
 
@@ -1755,7 +1745,12 @@ def run_server():
                             edit_or_send(chat_id, "🌐 <b>SELECT AUTO MODE MARKET:</b>", {"inline_keyboard": [[{"text": real_status_label, "callback_data": "auto_start:real"}], [{"text": "🛡 QUOTEX OTC", "callback_data": "auto_start:quotex"}], [{"text": "🚀 POCKET OPTION OTC", "callback_data": "auto_start:pocket"}], [{"text": "🔙 BACK", "callback_data": "back_to_menu"}]]}, msg_id)
                         elif cb_data.startswith("auto_start:"):
                             b_type = cb_data.split(":")[-1]
+                            
+                            # Safe thread-switching control to prevent multi-loop bug
+                            auto_mode_users[str(chat_id)] = False
+                            time.sleep(0.3)
                             auto_mode_users[str(chat_id)] = True
+
                             TelegramBot(chat_id=chat_id).send_message(f"<b>[:] AUTO MODE ACTIVATED ({b_type.upper()}) ✅</b>", reply_markup={"inline_keyboard": [[{"text": "🛑 STOP AUTO", "callback_data": "auto_btn:stop"}]]})
                             threading.Thread(target=auto_mode_loop, args=(chat_id, username, b_type), daemon=True).start()
                         elif cb_data == "auto_btn:stop":
