@@ -2023,7 +2023,7 @@ def run_server():
                         elif cb_data.startswith("auto_btn:next"):
                             is_vip = is_vip_user(chat_id, username)
                             user_tz, _ = get_user_tz(chat_id)
-                            used_today =.get_user_daily_usage(chat_id, user_tz)
+                            used_today = get_user_daily_usage(chat_id, user_tz)
                             if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
                                 kb = {
                                     "inline_keyboard": [
