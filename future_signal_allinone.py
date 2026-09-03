@@ -2047,7 +2047,7 @@ def run_server():
                             parts = cb_data.split(":")
                             session_state.setdefault(chat_id, {})["broker"] = parts[1]
                             session_state.setdefault(chat_id, {})["broker_type"] = parts[2]
-                            edit_or_send(chat_id, "⏱ <b>SELECT SIGNAL DURATION:</b>", {"inline_keyboard": [[{"text": "⏱ 15 min", "callback_data": "time:15"}, {"text": "⏱ 30 min", "callback_data": "time:30"}], [{"text": "⏱ 1 Hour", "callback_data": "time:60"}, {"text": "⏱ 2 Hours", "callback_data": "time:120"}], [{"text":. "🔥 4 Hours (Large Batch)", "callback_data": "time:240"}], [{"text": "🔙 Back", "callback_data": "menu:future"}]]}, msg_id)
+                            edit_or_send(chat_id, "⏱ <b>SELECT SIGNAL DURATION:</b>", {"inline_keyboard": [[{"text": "⏱ 15 min", "callback_data": "time:15"}, {"text": "⏱ 30 min", "callback_data": "time:30"}], [{"text": "⏱ 1 Hour", "callback_data": "time:60"}, {"text": "⏱ 2 Hours", "callback_data": "time:120"}], [{"text": "🔥 4 Hours (Large Batch)", "callback_data": "time:240"}], [{"text": "🔙 Back", "callback_data": "menu:future"}]]}, msg_id)
                         elif cb_data.startswith("time:"):
                             session_state.setdefault(chat_id, {})["window_mins"] = int(cb_data.split(":")[-1])
                             generate_and_send_batch_signals(chat_id, msg_id, username=username)
@@ -2072,8 +2072,8 @@ def run_server():
                             total = d_stats.get('win', 0) + d_stats.get('mtg', 0) + d_stats.get('loss', 0)
                             wins_total = d_stats.get('win', 0) + d_stats.get('mtg', 0)
                             winrate = f"{(wins_total) / total * 100:.1f}%" if total > 0 else "0.0%"
-                            summary_text =. (
-                                f"📊 <b>DAILY SUMMARY ({today_str})</b>\n────────────────────────\n🟩 Direct Wins: {d_stats.get('win', 0)}\n🛡 MTG Wins: {d_stats.get('mtg', 0)}\n❌ Loss: {d_stats.get('loss', 0)}\n🎯 Total Win Rate:. {winrate}"
+                            summary_text = (
+                                f"📊 <b>DAILY SUMMARY ({today_str})</b>\n────────────────────────\n🟩 Direct Wins: {d_stats.get('win', 0)}\n🛡 MTG Wins: {d_stats.get('mtg', 0)}\n❌ Loss: {d_stats.get('loss', 0)}\n🎯 Total Win Rate: {winrate}"
                             )
                             edit_or_send(chat_id, summary_text, {"inline_keyboard": [[{"text": "🔙 Back", "callback_data": "back_to_menu"}]]}, msg_id)
                         elif cb_data == "menu:support":
