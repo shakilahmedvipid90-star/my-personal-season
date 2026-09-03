@@ -1,12 +1,11 @@
 #!/usr/init/env python3
 """
 👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
-- Dynamic Asset Rotation & Anti-Stagnation Engine (Normalized Score across all pairs)
-- Automated Loss-Cooldown Shield (Blacklists any losing pair for 8 mins to prevent chain loss)
-- Strict Anti-Fatigue Rule (Max 2 consecutive signals per pair)
-- Exact Quotex, Pocket Option, & Forex Multi-Broker API Synchronizers
-- Combined VIP Signal Card Layout (Scanner + Execution Ticket in One Clean Card)
-- Compact 2x2 Menu Layout with Full-Width Action Buttons
+- Proven High-Accuracy Engine: Resistance Breakout + Wick/Doji Rejection + 8-Min Loss Cooldown Shield
+- Stealth VIP Schedule Mode: No STOP Time or Bot Clues exposed to Channel Members
+- Manual Admin In-Chat Live Schedule Controls: [SEND PARTIAL] & [STOP SCHEDULE]
+- Optimized VIP Signal Card Layout & Custom Status Line
+- 100% Exact Multi-Broker APIs (Quotex, Pocket Option, Forex)
 """
 
 import os
@@ -92,9 +91,10 @@ LIVE_REAL_PAIRS = [
     "USDCAD", "USDCHF"
 ]
 
-# Asset rotation and memory tracking
+# Memory & State registries
 pair_cooldown_registry = {}     # {pair: expire_timestamp}
 recent_pair_history = {}        # {chat_id: [last_pair_1, last_pair_2]}
+active_scheduled_sessions = {}  # {target_channel: {"is_running": True, ...}}
 
 user_active_menu_msg = {}
 session_state = {}
@@ -160,7 +160,7 @@ class XChartsClient:
         else:
             return f"https://xcharts.live/api/market/quotex/?symbol={base}-OTCq&interval=1m&limit=600"
 
-    def fetch_recent_candles(self, pair_raw, limit=30, broker_type="quotex"):
+    def fetch_recent_candles(self, pair_raw, limit=35, broker_type="quotex"):
         self.ensure_session_active()
         url = self.get_api_url(pair_raw, broker_type)
         try:
@@ -286,7 +286,7 @@ def save_user_schedule(chat_id, schedule_data):
     data[c_id].append(schedule_data)
     save_json(SCHEDULE_SAVED_FILE, data)
 
-# ================= HIGH-ACCURACY DEEP-SCAN ANALYSIS ENGINE =================
+# ================= HIGH-ACCURACY ANALYSIS & RESISTANCE BREAKOUT ENGINE =================
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1:
         return 50.0
@@ -317,11 +317,11 @@ def calculate_ema(values, period):
 
 def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
     """
-    Normalized Multi-Asset Scanner:
-    1. Evaluates all pairs using percentage-based relative momentum (no bias toward high-value pairs).
-    2. Enforces cooldown on losing pairs (skips pairs on cooldown).
-    3. Prevents repeating the exact same pair more than 2 consecutive times.
-    4. Guards against reversal exhaustion (RSI overbought/oversold boundaries).
+    Proven High-Accuracy Engine:
+    1. Resistance/Support Breakout Confirmation (Avoids sideways trap).
+    2. Long Wick & Doji Exclusion Filter.
+    3. Normalized Percentage Strength & Anti-Stagnation.
+    4. 8-Minute Loss Cooldown Shield.
     """
     now_ts = time.time()
     chat_key = str(chat_id) if chat_id else "global"
@@ -333,12 +333,12 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
     best_pair = None
     best_score = -999.0
     best_dir = "CALL"
-    best_tag = "High-Accuracy Deep Scan Momentum"
+    best_tag = "Resistance Breakout Bullish Flow"
 
     candidates = []
 
     for p in shuffled_pool:
-        # Check cooldown: if this pair recently lost, skip it
+        # Check Loss Cooldown Shield
         if p in pair_cooldown_registry and now_ts < pair_cooldown_registry[p]:
             continue
 
@@ -356,10 +356,15 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         highs = [float(c["high"]) for c in recent_candles]
         lows = [float(c["low"]) for c in recent_candles]
 
-        # Filter out choppy/doji/messy candles
-        recent_body_ratio = abs(closes[-1] - opens[-1]) / (highs[-1] - lows[-1]) if (highs[-1] - lows[-1]) > 0 else 0
-        if recent_body_ratio < 0.20:
+        # 1. Reject Doji & Tiny Body Candles
+        candle_range = highs[-1] - lows[-1]
+        candle_body = abs(closes[-1] - opens[-1])
+        if candle_range <= 0 or (candle_body / candle_range) < 0.25:
             continue
+
+        # 2. Reject Exhaustion / Resistance Wick Traps
+        upper_wick = highs[-1] - max(opens[-1], closes[-1])
+        lower_wick = min(opens[-1], closes[-1]) - lows[-1]
 
         ema9 = calculate_ema(closes, 9)
         ema21 = calculate_ema(closes, 21)
@@ -369,38 +374,37 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         if current_price <= 0:
             continue
 
-        # NORMALIZED RELATIVE STRENGTH (% Difference, not raw price difference)
         relative_diff = (ema9[-1] - ema21[-1]) / current_price
         normalized_strength = abs(relative_diff) * 10000.0
 
-        # Bollinger bandwidth to avoid dead market
         sma20 = sum(closes[-20:]) / 20
         variance = sum([(x - sma20) ** 2 for x in closes[-20:]]) / 20
         std_dev = variance ** 0.5
         band_width = (std_dev * 2) / sma20 if sma20 > 0 else 0.01
-        if band_width < 0.0002:
+        if band_width < 0.00025:
             continue
 
-        # CALL Setup: EMA9 > EMA21, not overbought (RSI < 65), not reversing down
-        if ema9[-1] > ema21[-1] and 44 < rsi_val < 65:
-            # Reversal check: latest candle should not be a massive dump
-            if not (opens[-1] - closes[-1] > (highs[-1] - lows[-1]) * 0.7):
-                score = normalized_strength + (65 - abs(rsi_val - 50)) * 0.05
-                candidates.append((score, p, "CALL", "High-Accuracy Deep Scan Bullish Flow"))
+        recent_high = max(highs[-5:-1])
+        recent_low = min(lows[-5:-1])
 
-        # PUT Setup: EMA9 < EMA21, not oversold (RSI > 36), not reversing up
-        elif ema9[-1] < ema21[-1] and 36 < rsi_val < 58:
-            # Reversal check: latest candle should not be a massive spike
-            if not (closes[-1] - opens[-1] > (highs[-1] - lows[-1]) * 0.7):
-                score = normalized_strength + (65 - abs(rsi_val - 50)) * 0.05
-                candidates.append((score, p, "PUT", "High-Accuracy Deep Scan Bearish Flow"))
+        # CALL Setup: Bullish EMA, Clean RSI, Breaking Resistance without upper wick rejection
+        if ema9[-1] > ema21[-1] and 45 < rsi_val < 66:
+            if upper_wick < candle_body * 0.9:
+                if closes[-1] >= recent_high * 0.9998:
+                    score = normalized_strength + (66 - abs(rsi_val - 50)) * 0.05 + 1.5
+                    candidates.append((score, p, "CALL", "Resistance Breakout Bullish Flow"))
+
+        # PUT Setup: Bearish EMA, Clean RSI, Breaking Support without lower wick rejection
+        elif ema9[-1] < ema21[-1] and 35 < rsi_val < 57:
+            if lower_wick < candle_body * 0.9:
+                if closes[-1] <= recent_low * 1.0002:
+                    score = normalized_strength + (66 - abs(rsi_val - 50)) * 0.05 + 1.5
+                    candidates.append((score, p, "PUT", "Support Breakdown Bearish Flow"))
 
     if candidates:
         candidates.sort(key=lambda x: x[0], reverse=True)
-        # Select best scoring candidate
         best_score, best_pair, best_dir, best_tag = candidates[0]
     else:
-        # Fallback if strict filter eliminated all: pick randomly from pairs not on cooldown
         valid_pool = [p for p in shuffled_pool if p not in pair_cooldown_registry or now_ts >= pair_cooldown_registry[p]]
         if not valid_pool:
             valid_pool = shuffled_pool
@@ -408,7 +412,6 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         best_dir = random.choice(["CALL", "PUT"])
         best_tag = "Neural Momentum Continuation Flow"
 
-    # Update recent history for anti-stagnation
     if chat_key not in recent_pair_history:
         recent_pair_history[chat_key] = []
     recent_pair_history[chat_key].append(best_pair)
@@ -708,7 +711,18 @@ def build_partial_scoreboard_text(chat_id, user_tz):
         f"────────── . ──────────"
     )
 
-# ================= LUXURY VIP CARD BUILDERS =================
+# ================= LUXURY VIP CARD & SCAN CARD BUILDERS =================
+def build_scanning_card():
+    return (
+        "───────────────✦───────────────\n"
+        " 🧠 <b>DEEP MARKET SCANNER</b> 🔮\n"
+        "───────────────✦───────────────\n"
+        " 🛡 <b>Shield:</b> <code>Anti-Reversal Guard Active</code>\n"
+        " ⚡ <b>Scanning:</b> <i>All pairs for 90%+ setups...</i>\n"
+        " ⏳ <i>Please wait a few seconds...</i>\n"
+        "───────────────✦───────────────"
+    )
+
 def build_vip_combined_card(clean_pair, direction, confidence, tz_str, algorithm_tag, entry_str, market_label="QUOTEX OTC"):
     dir_emoji = "🟢" if direction in ["CALL", "BUY"] else "🔴"
     dir_text = "CALL ▲ (BUY UP)" if direction in ["CALL", "BUY"] else "PUT ▼ (SELL DOWN)"
@@ -717,16 +731,17 @@ def build_vip_combined_card(clean_pair, direction, confidence, tz_str, algorithm
         f"═══════════════════════\n"
         f"🌐 <b>MARKET:</b> <code>{market_label}</code>\n"
         f"🪙 <b>ASSET:</b> 💠 <b><code>{clean_pair}</code></b> 💠\n"
+        f"{dir_emoji} <b>DIRECTION:</b> <b>{dir_text}</b>\n"
+        f"⏰ <b>ENTRY TIME:</b> <code>{entry_str}</code>\n"
+        f"⌛ <b>DURATION:</b> <b>1 MINUTE</b>\n"
+        f"───────────────────────\n"
         f"⚡ <b>CONFIDENCE:</b> <code>{confidence}% [EXPERT GRADE]</code>\n"
         f"🧠 <b>ALGORITHM:</b> <code>{algorithm_tag}</code>\n"
         f"🌐 <b>TIMEZONE:</b> <code>{tz_str} (Synced)</code>\n"
         f"═══════════════════════\n"
-        f"{dir_emoji} <b>DIRECTION:</b> <b>{dir_text}</b>\n"
-        f"⏰ <b>ENTRY TIME:</b> <code>{entry_str}</code>\n"
-        f"⌛ <b>DURATION:</b> <b>1 MINUTE</b>\n"
         f"🛡 <b>RISK PLAN:</b> <b>MAX 1-STEP MTG</b>\n"
         f"═══════════════════════\n"
-        f"💎 <i>Status: Secured & Locked for Execution</i>"
+        f"🛡 <i>Status: Follow Safety Margin & Risk Rules ⚠️</i>"
     )
 
 def build_golden_trophy_result_card(clean_pair, dir_action, outcome_status, wins, losses, win_rate, market_label="QUOTEX OTC"):
@@ -832,14 +847,7 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
             pool = QUOTEX_OTC_ASSETS
 
     bot_instance = TelegramBot(chat_id=chat_id)
-    
-    scan_msg_id = bot_instance.send_message(
-        "╭──────────────────────╮\n"
-        "│ 🧠 <b>DEEP MARKET SCAN INITIATED</b> 🔮\n"
-        "╰──────────────────────╯\n\n"
-        "⚡️ Scanning all pairs with Anti-Reversal Shield...\n\n"
-        "⏳ Please wait a few seconds..."
-    )
+    scan_msg_id = bot_instance.send_message(build_scanning_card())
 
     selected_pair, direction, confidence, algorithm_tag = analyze_best_pair_and_trend(pool, broker_type=broker_type, chat_id=chat_id)
     clean_pair = format_pair_name(selected_pair, broker_type=broker_type)
@@ -944,7 +952,6 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
             mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
             outcome_status = "MTG" if mtg_win else "LOSS"
 
-        # If trade is lost, put this pair on an 8-minute cooldown immediately
         if outcome_status == "LOSS":
             pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
 
@@ -986,16 +993,26 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
     else:
         m_label = "QUOTEX OTC"
 
+    session_info = {
+        "is_running": True,
+        "admin_chat_id": admin_chat_id,
+        "broker_type": broker_type,
+        "m_label": m_label,
+        "target_channel": target_channel,
+        "end_dt": end_dt
+    }
+    active_scheduled_sessions[str(target_channel)] = session_info
+
     now_time = datetime.now(user_tz)
-    
     start_time_str = start_dt.strftime("%H:%M")
+
     confirm_msg = (
         f"📢 <b>VIP SIGNAL SESSION SCHEDULED!</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🎯 <b>Target Market:</b> <code>{m_label}</code>\n"
         f"⏰ <b>Start Time:</b> <code>{start_time_str}</code>\n"
-        f"💎 <b>Status:</b> <code>Session saved successfully. Prepare your accounts!</code>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"💎 <b>Status:</b> <i>Prepare your balance & stay active! 🔥</i>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
         f"👑 <b>{BOT_TITLE} VIP</b> 👑"
     )
     sent_confirm = bot_channel.send_message(confirm_msg)
@@ -1005,57 +1022,84 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
             "Make sure the bot is an <b>Admin</b> in that channel with 'Post Messages' permission."
         )
 
+    admin_live_kb = {
+        "inline_keyboard": [
+            [
+                {"text": "🎴 SEND PARTIAL", "callback_data": f"sched_ctrl:partial:{target_channel}"},
+                {"text": "🛑 STOP SCHEDULE", "callback_data": f"sched_ctrl:stop:{target_channel}"}
+            ],
+            [
+                {"text": "🏠 HOME MENU", "callback_data": "back_to_menu"}
+            ]
+        ]
+    }
+    bot_admin.send_message(
+        f"╭━━━━━━━━━━━━━━━━━━━━╮\n"
+        f" ⏱ <b>LIVE SCHEDULE CONTROLLER</b>\n"
+        f"╰━━━━━━━━━━━━━━━━━━━━╯\n\n"
+        f"🎯 <b>Channel:</b> <code>{target_channel}</code>\n"
+        f"🌐 <b>Market:</b> <code>{m_label}</code>\n"
+        f"⏰ <b>Start Time:</b> <code>{start_time_str}</code>\n"
+        f"⚡ <i>Use the controls below at any time during the session:</i>",
+        reply_markup=admin_live_kb
+    )
+
     if now_time < alert_dt:
-        while datetime.now(user_tz) < alert_dt:
+        while datetime.now(user_tz) < alert_dt and session_info["is_running"]:
             time.sleep(5)
             
-        reminder_msg = (
-            f"⚠️ <b>REMINDER: VIP SESSION STARTS IN 30 MINUTES!</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"🎯 <b>Target Market:</b> <code>{m_label}</code>\n"
-            f"⏰ <b>Start Time:</b> <code>{start_time_str}</code>\n"
-            f"🚀 <i>Get ready! Our high-accuracy Quantum Flow signal engine will launch automatically in 30 minutes.</i>\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"👑 <b>{BOT_TITLE} VIP</b> 👑"
-        )
-        bot_channel.send_message(reminder_msg)
+        if session_info["is_running"]:
+            reminder_msg = (
+                f"⚠️ <b>REMINDER: VIP SESSION STARTS IN 30 MINUTES!</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"🎯 <b>Target Market:</b> <code>{m_label}</code>\n"
+                f"⏰ <b>Start Time:</b> <code>{start_time_str}</code>\n"
+                f"🚀 <i>Get ready! High-accuracy signals starting soon.</i>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"👑 <b>{BOT_TITLE} VIP</b> 👑"
+            )
+            bot_channel.send_message(reminder_msg)
     
-    while datetime.now(user_tz) < start_dt:
+    while datetime.now(user_tz) < start_dt and session_info["is_running"]:
         time.sleep(2)
-        
+
+    if not session_info["is_running"]:
+        active_scheduled_sessions.pop(str(target_channel), None)
+        return
+
     session_start_msg = (
         f"🚀 <b>VIP SIGNAL SESSION STARTED NOW!</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"🎯 Market: <code>{m_label}</code>\n"
-        f"⏰ STOP Time: <code>{end_dt.strftime('%H:%M')}</code>\n"
-        f"🎯 Dynamic Asset Rotation & Anti-Reversal Engine Active 🟢\n"
-        f"━━━━━━━━━━━━━━━━━━━"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🌐 <b>Market:</b> <code>{m_label}</code>\n"
+        f"🎯 <b>Setups:</b> <code>High Accuracy Direct Win Flow</code>\n"
+        f"⚠️ <b>Rules:</b> <i>Follow Money Management strictly!</i>\n"
+        f"━━━━━━━━━━━━━━━━━━━━"
     )
-    start_post_id = bot_channel.send_message(session_start_msg)
-    if not start_post_id:
-        bot_admin.send_message(
-            f"❌ <b>Schedule Error:</b> Bot failed to start session in <code>{target_channel}</code>. "
-            "Please check channel permissions!"
-        )
-        return
+    bot_channel.send_message(session_start_msg)
 
     user_partial_data[str(target_channel)] = []
     
-    while datetime.now(user_tz) < end_dt:
+    while datetime.now(user_tz) < end_dt and session_info["is_running"]:
         sig_meta = deliver_auto_signal(target_channel, is_channel_session=True, broker_type=broker_type)
         
         primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
-        while datetime.now(user_tz) < primary_settle_dt and datetime.now(user_tz) < end_dt:
+        while datetime.now(user_tz) < primary_settle_dt and datetime.now(user_tz) < end_dt and session_info["is_running"]:
             time.sleep(1)
             
+        if not session_info["is_running"]:
+            break
+
         primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
         if primary_win:
             outcome_status = "WIN"
         else:
             mtg_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=2, seconds=7)
-            while datetime.now(user_tz) < mtg_settle_dt and datetime.now(user_tz) < end_dt:
+            while datetime.now(user_tz) < mtg_settle_dt and datetime.now(user_tz) < end_dt and session_info["is_running"]:
                 time.sleep(1)
                 
+            if not session_info["is_running"]:
+                break
+
             mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
             outcome_status = "MTG" if mtg_win else "LOSS"
 
@@ -1085,12 +1129,21 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
 
     final_partial_card = build_partial_scoreboard_text(target_channel, user_tz)
     bot_channel.send_message(final_partial_card)
+    bot_channel.send_message(
+        f"🏁 <b>VIP SIGNAL SESSION CLOSED!</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🎉 <i>Thank you everyone for joining! Book your profits and follow money management.</i>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👑 <b>{BOT_TITLE} VIP</b> 👑"
+    )
     
     bot_admin.send_message(
-        f"✅ <b>SCHEDULED SESSION COMPLETED & CLOSED AUTOMATICALLY!</b>\n"
+        f"✅ <b>SCHEDULED SESSION CONCLUDED!</b>\n"
         f"Target: <code>{target_channel}</code>\n"
-        f"Final Stats: {wins} Wins / {losses} Losses ({win_rate:.1f}%)"
+        f"Final Performance: 🟢 {wins} Win | 🔴 {losses} Loss ({win_rate:.1f}%)"
     )
+
+    active_scheduled_sessions.pop(str(target_channel), None)
 
 # ================= FUTURE SIGNAL BATCH ENGINE =================
 def build_exact_user_format(signals, broker_name="REAL MARKET", user_tz=None, tz_offset=4):
@@ -1292,8 +1345,8 @@ def run_server():
             "╰──────────────────────╯\n\n"
             "⚡️ <b>CORE ENGINE:</b> Strict Price Math 🤖\n"
             "📈 <b>SPEED:</b> Real-Time 100% Broker Match ⚡️\n"
-            "🚀 <b>ALGORITHM:</b> Dynamic Best-Pair + Deep-Scan Neural Trend 🧠\n"
-            "🛡 <b>RISK CONTROL:</b> Smart Filters & Martingale Protection 🔒\n"
+            "🚀 <b>ALGORITHM:</b> Resistance Breakout + Wick Rejection 🧠\n"
+            "🛡 <b>RISK CONTROL:</b> 8-Min Loss Cooldown & Martingale Protection 🔒\n"
             "🌐 <b>MARKETS:</b> Real Market, Quotex & Pocket Option OTC 📊\n"
             "⚙️ <b>AUTOMATION:</b> Live Auto-Update Results 🤖\n\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -1429,13 +1482,7 @@ def run_server():
             broker_label = "QUOTEX OTC"
             pairs_list = QUOTEX_OTC_ASSETS
         
-        scan_msg_id = bot_instance.send_message(
-            "╭──────────────────────╮\n"
-            "│ 🧠 <b>DEEP MARKET SCAN INITIATED</b> 🔮\n"
-            "╰──────────────────────╯\n\n"
-            "⚡️ Scanning all pairs with Anti-Reversal Shield...\n\n"
-            "⏳ Please wait a few seconds..."
-        )
+        scan_msg_id = bot_instance.send_message(build_scanning_card())
         time.sleep(0.4)
         
         signals = generate_large_signal_batch(pairs_list, user_tz=user_tz, duration_mins=mins, is_vip=is_vip, broker_type=broker_type)
@@ -1724,9 +1771,8 @@ def run_server():
                                         f"• <b>Target Channel:</b> <code>{target_ch}</code>\n"
                                         f"• <b>Market Type:</b> <code>{m_lbl}</code>\n"
                                         f"• <b>Start Time:</b> <code>{start_dt.strftime('%H:%M')}</code>\n"
-                                        f"• <b>STOP Time:</b> <code>{end_dt.strftime('%H:%M')}</code>\n"
                                         f"━━━━━━━━━━━━━━━━━━━\n"
-                                        f"🤖 <i>The bot will automatically manage the complete session.</i>"
+                                        f"🤖 <i>The bot will post signals in the channel and control panel will appear in your chat.</i>"
                                     )
                                     TelegramBot(chat_id=chat_id).send_message(
                                         confirm_text,
@@ -1808,6 +1854,23 @@ def run_server():
                             TelegramBot(chat_id=chat_id).send_message(build_maintenance_card())
                             continue
 
+                        # LIVE SCHEDULE CONTROL HANDLERS (ADMIN IN-CHAT)
+                        if cb_data.startswith("sched_ctrl:partial:"):
+                            target_ch = cb_data.split(":")[-1]
+                            user_tz, _ = get_user_tz(chat_id)
+                            partial_text = build_partial_scoreboard_text(target_ch, user_tz)
+                            TelegramBot(chat_id=target_ch).send_message(partial_text)
+                            TelegramBot(chat_id=chat_id).send_message(f"✅ <b>Partial Scorecard Sent to</b> <code>{target_ch}</code>!")
+                            continue
+                        elif cb_data.startswith("sched_ctrl:stop:"):
+                            target_ch = cb_data.split(":")[-1]
+                            if target_ch in active_scheduled_sessions:
+                                active_scheduled_sessions[target_ch]["is_running"] = False
+                                TelegramBot(chat_id=chat_id).send_message(f"🛑 <b>Scheduled session for <code>{target_ch}</code> has been stopped manually!</b>")
+                            else:
+                                TelegramBot(chat_id=chat_id).send_message("ℹ️ No active scheduled session was found running for this channel.")
+                            continue
+
                         if cb_data == "sched_cancel":
                             user_input_state.pop(chat_id, None)
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
@@ -1825,15 +1888,38 @@ def run_server():
                             if not has_schedule_access(chat_id, username):
                                 TelegramBot(chat_id=chat_id).send_message("🔒 <i>Schedule Mode is restricted to authorized operators only. Contact Admin @MD_SUMON_MT4.</i>")
                                 continue
-                            hub_text = "⏱ <b>SCHEDULE MODE MANAGEMENT HUB</b>\n\nChoose an action below:"
-                            hub_kb = {
-                                "inline_keyboard": [
-                                    [{"text": "➕ NEW SCHEDULE", "callback_data": "sched:new"}],
-                                    [{"text": "📜 SCHEDULE HISTORY & SAVED", "callback_data": "sched:history"}],
-                                    [{"text": "✏️ EDIT SCHEDULE", "callback_data": "sched:edit"}],
-                                    [{"text": "🔙 BACK TO MENU", "callback_data": "back_to_menu"}]
-                                ]
-                            }
+                            
+                            active_ch = None
+                            for ch, sess in active_scheduled_sessions.items():
+                                if sess.get("is_running"):
+                                    active_ch = ch
+                                    break
+
+                            if active_ch:
+                                hub_text = (
+                                    f"⏱ <b>SCHEDULE MANAGEMENT HUB</b>\n\n"
+                                    f"🔴 <b>Active Session Running:</b> <code>{active_ch}</code>\n\n"
+                                    f"Choose an action below:"
+                                )
+                                hub_kb = {
+                                    "inline_keyboard": [
+                                        [{"text": "🎴 SEND PARTIAL TO CHANNEL", "callback_data": f"sched_ctrl:partial:{active_ch}"}],
+                                        [{"text": "🛑 STOP ACTIVE SCHEDULE", "callback_data": f"sched_ctrl:stop:{active_ch}"}],
+                                        [{"text": "➕ NEW SCHEDULE", "callback_data": "sched:new"}],
+                                        [{"text": "📜 SCHEDULE HISTORY", "callback_data": "sched:history"}],
+                                        [{"text": "🔙 BACK TO MENU", "callback_data": "back_to_menu"}]
+                                    ]
+                                }
+                            else:
+                                hub_text = "⏱ <b>SCHEDULE MANAGEMENT HUB</b>\n\nChoose an action below:"
+                                hub_kb = {
+                                    "inline_keyboard": [
+                                        [{"text": "➕ NEW SCHEDULE", "callback_data": "sched:new"}],
+                                        [{"text": "📜 SCHEDULE HISTORY & SAVED", "callback_data": "sched:history"}],
+                                        [{"text": "✏️ EDIT SCHEDULE", "callback_data": "sched:edit"}],
+                                        [{"text": "🔙 BACK TO MENU", "callback_data": "back_to_menu"}]
+                                    ]
+                                }
                             edit_or_send(chat_id, hub_text, hub_kb, msg_id)
                         elif cb_data == "sched:new":
                             user_input_state[chat_id] = {"step": "WAIT_CHANNEL"}
@@ -1932,12 +2018,12 @@ def run_server():
                                 TelegramBot(chat_id=chat_id).send_message(build_limit_exceeded_card(), reply_markup=kb)
                                 continue
                             deliver_auto_signal(chat_id, username=username, broker_type=b_type)
-                        elif cb_data == "auto_btn:analysis":
+                        elif cb_data.startswith("auto_btn:analysis"):
                             deliver_auto_signal(chat_id, username=username, broker_type="quotex")
-                        elif cb_data == "auto_btn:next":
+                        elif cb_data.startswith("auto_btn:next"):
                             is_vip = is_vip_user(chat_id, username)
                             user_tz, _ = get_user_tz(chat_id)
-                            used_today = get_user_daily_usage(chat_id, user_tz)
+                            used_today =.get_user_daily_usage(chat_id, user_tz)
                             if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
                                 kb = {
                                     "inline_keyboard": [
@@ -1961,7 +2047,7 @@ def run_server():
                             parts = cb_data.split(":")
                             session_state.setdefault(chat_id, {})["broker"] = parts[1]
                             session_state.setdefault(chat_id, {})["broker_type"] = parts[2]
-                            edit_or_send(chat_id, "⏱ <b>SELECT SIGNAL DURATION:</b>", {"inline_keyboard": [[{"text": "⏱ 15 min", "callback_data": "time:15"}, {"text": "⏱ 30 min", "callback_data": "time:30"}], [{"text": "⏱ 1 Hour", "callback_data": "time:60"}, {"text": "⏱ 2 Hours", "callback_data": "time:120"}], [{"text": "🔥 4 Hours (Large Batch)", "callback_data": "time:240"}], [{"text": "🔙 Back", "callback_data": "menu:future"}]]}, msg_id)
+                            edit_or_send(chat_id, "⏱ <b>SELECT SIGNAL DURATION:</b>", {"inline_keyboard": [[{"text": "⏱ 15 min", "callback_data": "time:15"}, {"text": "⏱ 30 min", "callback_data": "time:30"}], [{"text": "⏱ 1 Hour", "callback_data": "time:60"}, {"text": "⏱ 2 Hours", "callback_data": "time:120"}], [{"text":. "🔥 4 Hours (Large Batch)", "callback_data": "time:240"}], [{"text": "🔙 Back", "callback_data": "menu:future"}]]}, msg_id)
                         elif cb_data.startswith("time:"):
                             session_state.setdefault(chat_id, {})["window_mins"] = int(cb_data.split(":")[-1])
                             generate_and_send_batch_signals(chat_id, msg_id, username=username)
@@ -1986,14 +2072,14 @@ def run_server():
                             total = d_stats.get('win', 0) + d_stats.get('mtg', 0) + d_stats.get('loss', 0)
                             wins_total = d_stats.get('win', 0) + d_stats.get('mtg', 0)
                             winrate = f"{(wins_total) / total * 100:.1f}%" if total > 0 else "0.0%"
-                            summary_text = (
-                                f"📊 <b>DAILY SUMMARY ({today_str})</b>\n────────────────────────\n🟩 Direct Wins: {d_stats.get('win', 0)}\n🛡 MTG Wins: {d_stats.get('mtg', 0)}\n❌ Loss: {d_stats.get('loss', 0)}\n🎯 Total Win Rate: {winrate}"
+                            summary_text =. (
+                                f"📊 <b>DAILY SUMMARY ({today_str})</b>\n────────────────────────\n🟩 Direct Wins: {d_stats.get('win', 0)}\n🛡 MTG Wins: {d_stats.get('mtg', 0)}\n❌ Loss: {d_stats.get('loss', 0)}\n🎯 Total Win Rate:. {winrate}"
                             )
                             edit_or_send(chat_id, summary_text, {"inline_keyboard": [[{"text": "🔙 Back", "callback_data": "back_to_menu"}]]}, msg_id)
                         elif cb_data == "menu:support":
                             TelegramBot(chat_id=chat_id).send_message(f"📞 <b>SUPPORT</b>\n\nAdmin: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>\nBot Handle: <a href=\"{TELEGRAM_URL_HANDLE}\">{TELEGRAM_HANDLE}</a>")
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
-                        elif cb_data == "menu:about":
+                        elif cb_data.startswith("menu:about"):
                             TelegramBot(chat_id=chat_id).send_message(f"ℹ️ <b>ABOUT</b>\n\n{BOT_TITLE} — VIP Signal Bot V1.")
                             send_main_menu(chat_id, username=username, target_msg_id=msg_id)
                         elif cb_data == "back_to_menu":
