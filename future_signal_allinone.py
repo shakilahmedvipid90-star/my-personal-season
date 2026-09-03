@@ -1,14 +1,15 @@
 #!/usr/init/env python3
 """
 👑 MD SUMON TRADING BOT — OFFICIAL 100% ACCURATE VIP ENGINE (MULTI-BROKER & REAL MARKET)
-- Advanced Deep-Scan Neural Trend & Quantum Flow Engine (Full Asset Pool Evaluation)
+- 100% Exact Live APIs:
+  • Quotex OTC: /api/market/quotex/?symbol={base}-OTCq&interval=1m&limit=600
+  • Pocket Option OTC: /api/market/pocketoption/?symbol={base}-OTCp&interval=1m&limit=600
+  • Forex Real Market: /api/market/forex/?symbol=frx{base}&interval=1m&limit=2000
+- Native Browser-Emulated Session Engine (Auto CSRF & XSRF-Token Sync for xcharts.live)
+- Strict Broker-Isolated Routing & Reverse Candle Scanning Engine
+- Deep-Scan Neural Trend & Quantum Flow Engine (Full Asset Pool Evaluation)
 - Combined VIP Signal Card Layout (Scanner + Execution Ticket in One Clean Card)
-- Dedicated Market Selection for Schedule Mode (Real, Quotex OTC, Pocket Option OTC)
-- Instant Schedule Confirmation + 30-Minute Prior VIP Alert Notification in Target Channel
-- Fixed & Accurate API URL Formats for Quotex (-OTCq), Pocket Option (-OTCp), and Real Market (frx)
-- Strict Admin/Operator-Only Access for Schedule Mode (Hidden from Free Users)
 - Compact 2x2 Menu Layout with Full-Width Action Buttons
-- Clean Message Deletion, Single-Thread Lock & Consistent Market Labeling
 """
 
 import os
@@ -20,6 +21,7 @@ import random
 import threading
 import requests
 import warnings
+from urllib.parse import unquote
 from datetime import datetime, timedelta, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -69,7 +71,7 @@ QUOTEX_OTC_ASSETS = [
     "USDIDR_otc", "USDBDT_otc", "USDPKR_otc", "USDBRL_otc", "USDINR_otc", 
     "USDNGN_otc", "USDARS_otc", "USDDZD_otc", "USDMXN_otc", "CADCHF_otc", 
     "GBPNZD_otc", "NZDCAD_otc", "NZDJPY_otc", "EURNZD_otc", "NZDUSD_otc", 
-    "USDEGP_otc"
+    "USDEGP_otc", "AUDCAD_otc"
 ]
 
 POCKET_OPTION_OTC_ASSETS = [
@@ -87,10 +89,10 @@ POCKET_OPTION_OTC_ASSETS = [
 ]
 
 LIVE_REAL_PAIRS = [
-    "EURGBP", "CADJPY", "EURJPY", "EURUSD", "GBPJPY",
-    "GBPUSD", "AUDJPY", "EURCAD", "USDJPY", "AUDCAD",
-    "AUDCHF", "EURAUD", "GBPCAD", "GBPAUD", "AUDUSD",
-    "GBPCHF", "CHFJPY", "EURCHF", "USDCAD", "USDCHF"
+    "AUDJPY", "EURGBP", "CADJPY", "EURJPY", "EURUSD", "GBPJPY",
+    "GBPUSD", "EURCAD", "USDJPY", "AUDCAD", "AUDCHF", "EURAUD",
+    "GBPCAD", "GBPAUD", "AUDUSD", "GBPCHF", "CHFJPY", "EURCHF",
+    "USDCAD", "USDCHF"
 ]
 
 user_active_menu_msg = {}
@@ -106,6 +108,106 @@ telegram_msg_lock = threading.Lock()
 usage_lock = threading.Lock()
 batch_disk_lock = threading.Lock()
 config_lock = threading.Lock()
+
+# ================= AUTHENTICATED XCHARTS MULTI-BROKER CLIENT =================
+class XChartsClient:
+    def __init__(self):
+        self.session = requests.Session()
+        self.last_sync = 0
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://xcharts.live/chart/",
+            "Sec-Ch-Ua": '"Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin"
+        }
+        self.ensure_session_active()
+
+    def ensure_session_active(self):
+        if time.time() - self.last_sync > 600:
+            try:
+                self.session.get("https://xcharts.live/chart/", headers={
+                    "User-Agent": self.headers["User-Agent"],
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                }, timeout=8)
+                xsrf_cookie = self.session.cookies.get("XSRF-TOKEN")
+                if xsrf_cookie:
+                    self.headers["X-Xsrf-Token"] = unquote(xsrf_cookie)
+                self.last_sync = time.time()
+            except Exception:
+                pass
+
+    def get_api_url(self, pair_raw, broker_type="quotex"):
+        clean = pair_raw.strip().upper()
+        base = clean
+        for sfx in ["_OTC", "-OTC", "-OTCQ", "-OTCP", "OTCQ", "OTCP"]:
+            if base.endswith(sfx):
+                base = base[:-len(sfx)]
+                break
+        if base.startswith("FRX"):
+            base = base[3:]
+
+        b_type = (broker_type or "quotex").lower()
+        if b_type == "real":
+            # 100% Exact Live Forex Real Market API
+            return f"https://xcharts.live/api/market/forex/?symbol=frx{base}&interval=1m&limit=2000"
+        elif b_type == "pocket":
+            # 100% Exact Live Pocket Option OTC API
+            return f"https://xcharts.live/api/market/pocketoption/?symbol={base}-OTCp&interval=1m&limit=600"
+        else:
+            # 100% Exact Live Quotex OTC API
+            return f"https://xcharts.live/api/market/quotex/?symbol={base}-OTCq&interval=1m&limit=600"
+
+    def fetch_recent_candles(self, pair_raw, limit=30, broker_type="quotex"):
+        self.ensure_session_active()
+        url = self.get_api_url(pair_raw, broker_type)
+        try:
+            resp = self.session.get(url, headers=self.headers, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                candles = data.get("candles", [])
+                if candles and len(candles) >= 15:
+                    return candles
+        except Exception:
+            pass
+        return None
+
+    def fetch_live_candle(self, pair_raw, target_dt, broker_type="quotex"):
+        self.ensure_session_active()
+        url = self.get_api_url(pair_raw, broker_type)
+        
+        if target_dt.tzinfo is None:
+            target_utc_ts = int(target_dt.timestamp() // 60) * 60
+        else:
+            target_utc_ts = int(target_dt.astimezone(timezone.utc).timestamp() // 60) * 60
+
+        for _ in range(5):
+            try:
+                resp = self.session.get(url, headers=self.headers, timeout=8)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    candles = data.get("candles", [])
+                    if candles:
+                        # Check newest candles backwards for zero-delay exact timestamp match
+                        for c in reversed(candles[-25:]):
+                            c_time = c.get("time")
+                            if c_time is not None and abs(c_time - target_utc_ts) < 20:
+                                return {
+                                    "open": float(c.get("open")),
+                                    "close": float(c.get("close")),
+                                    "high": float(c.get("high")),
+                                    "low": float(c.get("low"))
+                                }
+            except Exception:
+                pass
+            time.sleep(1.5)
+        return None
+
+xcharts = XChartsClient()
 
 # ================= MAINTENANCE & ACCESS PERMISSIONS =================
 def load_config():
@@ -187,82 +289,6 @@ def save_user_schedule(chat_id, schedule_data):
     data[c_id].append(schedule_data)
     save_json(SCHEDULE_SAVED_FILE, data)
 
-# ================= XCHARTS LIVE DATA FETCHER =================
-XCHARTS_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://xcharts.live/chart/",
-    "Sec-Ch-Ua": '"Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-origin"
-}
-
-def get_xcharts_api_url(pair_raw, broker_type="quotex"):
-    clean = pair_raw.strip().upper()
-    if broker_type == "real" or clean in LIVE_REAL_PAIRS:
-        base = clean.replace("Q", "").replace("P", "").replace("_OTC", "").replace("-OTC", "")
-        return f"https://xcharts.live/api/market/forex/?symbol=frx{base}&interval=1m&limit=2000"
-    elif broker_type == "pocket" or clean in [p.upper() for p in POCKET_OPTION_OTC_ASSETS]:
-        base = clean.replace("_OTC", "").replace("-OTC", "")
-        return f"https://xcharts.live/api/market/pocketoption/?symbol={base}-OTCp&interval=1m&limit=600"
-    else:
-        base = clean.replace("_OTC", "").replace("-OTC", "")
-        return f"https://xcharts.live/api/market/quotex/?symbol={base}-OTCq&interval=1m&limit=100"
-
-def fetch_recent_candles_xcharts(pair_raw, limit=30, broker_type="quotex"):
-    url = get_xcharts_api_url(pair_raw, broker_type)
-    try:
-        resp = requests.get(url, headers=XCHARTS_HEADERS, timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            candles = data.get("candles", [])
-            if candles and len(candles) >= 15:
-                return candles
-    except Exception:
-        pass
-    return None
-
-def fetch_live_candle_xcharts(pair_raw, target_dt, broker_type="quotex"):
-    url = get_xcharts_api_url(pair_raw, broker_type)
-    
-    if target_dt.tzinfo is None:
-        target_utc_ts = int(target_dt.timestamp() // 60) * 60
-    else:
-        target_utc_ts = int(target_dt.astimezone(timezone.utc).timestamp() // 60) * 60
-
-    for attempt in range(3):
-        try:
-            resp = requests.get(url, headers=XCHARTS_HEADERS, timeout=8)
-            if resp.status_code == 200:
-                data = resp.json()
-                candles = data.get("candles", [])
-                
-                best_match = None
-                min_diff = 9999
-                for c in candles:
-                    c_time = c.get("time")
-                    if c_time is not None:
-                        diff = abs(c_time - target_utc_ts)
-                        if diff < min_diff and diff <= 65:
-                            min_diff = diff
-                            best_match = c
-                
-                if best_match:
-                    return {
-                        "open": float(best_match.get("open")),
-                        "close": float(best_match.get("close")),
-                        "high": float(best_match.get("high")),
-                        "low": float(best_match.get("low"))
-                    }
-        except Exception:
-            pass
-        time.sleep(1.2)
-        
-    return None
-
 # ================= HIGH-ACCURACY DEEP-SCAN ANALYSIS ENGINE =================
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1:
@@ -280,12 +306,10 @@ def calculate_rsi(prices, period=14):
     
     avg_gain = sum(gains[-period:]) / period
     avg_loss = sum(losses[-period:]) / period
-    
     if avg_loss == 0:
         return 100.0
     rs = avg_gain / avg_loss
-    rsi = 100.0 - (100.0 / (1.0 + rs))
-    return rsi
+    return 100.0 - (100.0 / (1.0 + rs))
 
 def calculate_ema(values, period):
     k = 2 / (period + 1)
@@ -295,10 +319,6 @@ def calculate_ema(values, period):
     return ema
 
 def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
-    """
-    DEEP MARKET SCANNER: Iterates through EVERY asset in the pool, evaluates EMA crossover, 
-    RSI momentum, candle body cleanliness, and volatility to guarantee 90%+ win rate potential.
-    """
     shuffled_pool = list(pair_pool)
     random.shuffle(shuffled_pool)
     
@@ -308,16 +328,16 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
     best_tag = "Neural Bullish Trend + Quantum Flow"
 
     for p in shuffled_pool:
-        candles = fetch_recent_candles_xcharts(p, limit=30, broker_type=broker_type)
+        candles = xcharts.fetch_recent_candles(p, limit=30, broker_type=broker_type)
         if not candles or len(candles) < 25:
             continue
             
-        closes = [float(c["close"]) for c in candles]
-        opens = [float(c["open"]) for c in candles]
-        highs = [float(c["high"]) for c in candles]
-        lows = [float(c["low"]) for c in candles]
+        recent_candles = candles[-35:]
+        closes = [float(c["close"]) for c in recent_candles]
+        opens = [float(c["open"]) for c in recent_candles]
+        highs = [float(c["high"]) for c in recent_candles]
+        lows = [float(c["low"]) for c in recent_candles]
         
-        # Filter out choppy/doji wicky candles
         recent_body_ratio = abs(closes[-1] - opens[-1]) / (highs[-1] - lows[-1]) if (highs[-1] - lows[-1]) > 0 else 0
         if recent_body_ratio < 0.25:
             continue
@@ -332,12 +352,11 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
         band_width = (std_dev * 2) / sma20 if sma20 > 0 else 0.01
 
         if band_width < 0.0003:
-            continue  # Skip dead sideways market
+            continue
 
         diff = ema9[-1] - ema21[-1]
         strength = abs(diff)
 
-        # High-Accuracy Thresholds
         if ema9[-1] > ema21[-1] and 40 < rsi_val < 68:
             score = strength + (68 - abs(rsi_val - 50)) * 0.001
             if score > best_score:
@@ -357,7 +376,7 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex"):
     return best_pair, best_dir, confidence, best_tag
 
 def evaluate_primary_candle(pair, target_dt, direction, broker_type="quotex"):
-    candle = fetch_live_candle_xcharts(pair, target_dt, broker_type)
+    candle = xcharts.fetch_live_candle(pair, target_dt, broker_type)
     if candle:
         op = candle["open"]
         cl = candle["close"]
@@ -366,7 +385,7 @@ def evaluate_primary_candle(pair, target_dt, direction, broker_type="quotex"):
 
 def evaluate_mtg_candle(pair, target_dt, direction, broker_type="quotex"):
     mtg_target_dt = target_dt + timedelta(minutes=1)
-    candle = fetch_live_candle_xcharts(pair, mtg_target_dt, broker_type)
+    candle = xcharts.fetch_live_candle(pair, mtg_target_dt, broker_type)
     if candle:
         op = candle["open"]
         cl = candle["close"]
@@ -377,7 +396,7 @@ def evaluate_mtg_candle(pair, target_dt, direction, broker_type="quotex"):
 def format_pair_name(pair_raw, broker_type="quotex"):
     raw = str(pair_raw).strip()
     if broker_type == "real":
-        return raw.upper().replace("_OTC", "").replace("-OTC", "")
+        return raw.upper().replace("_OTC", "").replace("-OTC", "").replace("FRX", "")
     if "_otc" in raw.lower() or broker_type == "pocket":
         base = raw.lower().replace("_otc", "").replace("-otc", "").upper()
         return f"{base}_otc"
@@ -540,11 +559,7 @@ def setup_telegram_commands():
     base = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
     try:
         default_commands = [{"command": "start", "description": "Launch Trading Bot"}]
-        requests.post(
-            f"{base}/setMyCommands",
-            json={"commands": default_commands, "scope": {"type": "default"}},
-            timeout=5
-        )
+        requests.post(f"{base}/setMyCommands", json={"commands": default_commands, "scope": {"type": "default"}}, timeout=5)
         admin_commands = [
             {"command": "start", "description": "Launch Trading Bot"},
             {"command": "check", "description": "Inspect User Audit / History"},
@@ -556,11 +571,7 @@ def setup_telegram_commands():
             {"command": "active", "description": "Turn Server Online"},
             {"command": "maintenance", "description": "Turn Maintenance Mode On"}
         ]
-        requests.post(
-            f"{base}/setMyCommands",
-            json={"commands": admin_commands, "scope": {"type": "chat", "chat_id": int(ADMIN_CHAT_ID)}},
-            timeout=5
-        )
+        requests.post(f"{base}/setMyCommands", json={"commands": admin_commands, "scope": {"type": "chat", "chat_id": int(ADMIN_CHAT_ID)}}, timeout=5)
     except Exception:
         pass
 
@@ -1198,7 +1209,6 @@ def run_server():
         is_admin = str(chat_id) == str(ADMIN_CHAT_ID)
         can_schedule = has_schedule_access(chat_id, username)
         
-        # ১ নম্বর লাইন: প্রধান ট্রেডিং মোড (২টি বাটন)
         keyboard_buttons = [
             [
                 {"text": "🤖 AUTO MODE", "callback_data": "menu:auto_market_select"},
@@ -1206,11 +1216,9 @@ def run_server():
             ]
         ]
 
-        # ২ নম্বর লাইন: শিডিউল মোড (পারমিশন থাকলে বড় বাটন)
         if can_schedule:
             keyboard_buttons.append([{"text": "⏱ SCHEDULE MODE", "callback_data": "menu:schedule_hub"}])
 
-        # ৩ ও ৪ নম্বর লাইন: ড্যাশবোর্ড অপশনসমূহ (জোড়ায় জোড়ায়)
         keyboard_buttons.extend([
             [
                 {"text": "📊 DAILY SUMMARY", "callback_data": "menu:daily_summary"},
@@ -1222,7 +1230,6 @@ def run_server():
             ]
         ])
         
-        # লাস্ট লাইন: অ্যাডমিন প্যানেল (অ্যাডমিনের জন্য ফুল-সাইজ বাটন)
         if is_admin:
             keyboard_buttons.append([{"text": "👑 ADMIN SERVER CONTROL", "callback_data": "admin:panel"}])
 
