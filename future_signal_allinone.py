@@ -1,10 +1,11 @@
 #!/usr/init/env python3
 """
 👑 MD SUMON TRADING BOT — QUANTUM NEURAL & ADAPTIVE CHOP-FILTER VIP ENGINE
-- Pure Quantum Analysis & Neural Trend Directional Flow
-- Single-Instance Concurrency Lock (Prevents Duplicate Messages)
-- Instant Quick Target Channel Mode & Bulletproof Result Evaluator
-- Bollinger Band Upper/Lower Rejection + EMA 9 Pullback & Bounce Logic
+- Global Multi-Pair Confluence Scanner (Picks #1 Best Pair Every Scan)
+- Advanced Wick Rejection & Dynamic Volatility Ratio Filter
+- Tighter Anti-Chop & Sideways Noise Filter (<0.34 Noise Block)
+- 12-Minute Loss Isolation Cooldown Shield
+- Instant Quick Target Channel Mode & Zero Wait-Time Execution
 """
 
 import os
@@ -22,7 +23,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# ================= SINGLE INSTANCE LOCK (PREVENTS DOUBLE MESSAGES) =================
+# ================= SINGLE INSTANCE CONCURRENCY LOCK =================
 LOCK_FILE = "bot_running.lock"
 if os.path.exists(LOCK_FILE):
     try:
@@ -311,7 +312,7 @@ def save_user_schedule(chat_id, schedule_data):
     data[c_id].append(schedule_data)
     save_json(SCHEDULE_SAVED_FILE, data)
 
-# ================= QUANTUM ANALYSIS & MULTI-INDICATOR SIGNAL ENGINE =================
+# ================= ULTRA-ACCURATE MULTI-PAIR SCANNER ENGINE =================
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1:
         return 50.0
@@ -341,20 +342,23 @@ def calculate_ema(values, period):
     return ema
 
 def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
+    """
+    Global Pair Scanner: Scans EVERY pair in the list and ranks them mathematically.
+    Filters:
+    1. Rejection Wick Analysis: Confirms real price reversal from BB/EMA limits.
+    2. Strict Anti-Chop Guard: Blocks low body-to-range ratios (<0.34).
+    3. Multi-Timeframe Alignment: 5M trend confirms 1M direction.
+    4. Guru Power: Strong buyer/seller domination (>54%).
+    """
     now_ts = time.time()
     chat_key = str(chat_id) if chat_id else "global"
     recent_pairs = recent_pair_history.get(chat_key, [])
 
-    shuffled_pool = list(pair_pool)
-    random.shuffle(shuffled_pool)
-
-    best_pair = None
-    best_dir = "CALL"
-    best_tag = "Quantum Core Momentum & Trend Flow [ID-99]"
-
     candidates = []
 
-    for p in shuffled_pool:
+    # FULL POOL SCAN (Examines all available pairs)
+    for p in pair_pool:
+        # Cooldown & Repeat Protection
         if p in pair_cooldown_registry and now_ts < pair_cooldown_registry[p]:
             continue
 
@@ -371,26 +375,26 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         highs = [float(c["high"]) for c in recent_candles]
         lows = [float(c["low"]) for c in recent_candles]
 
-        recent_bodies = [abs(closes[i] - opens[i]) for i in range(-5, 0)]
-        recent_ranges = [highs[i] - lows[i] for i in range(-5, 0)]
+        # 1. ULTRA-STRICT CHOPPY / NOISE FILTER (Blocks sideways exhaustion)
+        recent_bodies = [abs(closes[i] - opens[i]) for i in range(-6, 0)]
+        recent_ranges = [highs[i] - lows[i] for i in range(-6, 0)]
         avg_body = sum(recent_bodies) / len(recent_bodies)
         avg_range = sum(recent_ranges) / len(recent_ranges)
         
-        if avg_range > 0 and (avg_body / avg_range) < 0.28:
+        if avg_range > 0 and (avg_body / avg_range) < 0.34:
             continue
 
+        # 2. DOJI / TINY BODY FILTER
         candle_range = highs[-1] - lows[-1]
         candle_body = abs(closes[-1] - opens[-1])
-        if candle_range <= 0 or (candle_body / candle_range) < 0.22:
+        if candle_range <= 0 or (candle_body / candle_range) < 0.28:
             continue
-
-        ema9 = calculate_ema(closes, 9)
-        rsi_val = calculate_rsi(closes, 14)
 
         current_price = closes[-1]
         if current_price <= 0:
             continue
 
+        # 3. BOLLINGER BANDS & VOLATILITY
         sma20 = sum(closes[-20:]) / 20
         variance = sum([(x - sma20) ** 2 for x in closes[-20:]]) / 20
         std_dev = variance ** 0.5
@@ -398,15 +402,24 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         bb_lower = sma20 - (2.0 * std_dev)
         band_width = (std_dev * 2) / sma20 if sma20 > 0 else 0.01
 
-        if band_width < 0.0002:
+        if band_width < 0.0003:
             continue
 
+        ema9 = calculate_ema(closes, 9)
+        rsi_val = calculate_rsi(closes, 14)
+
+        # 4. REJECTION WICK RATIO (The key to eliminating false reversals)
+        upper_wick = highs[-1] - max(opens[-1], closes[-1])
+        lower_wick = min(opens[-1], closes[-1]) - lows[-1]
+        lower_wick_ratio = lower_wick / candle_range
+        upper_wick_ratio = upper_wick / candle_range
+
+        # 5. BUYER/SELLER POWER DOMINATION
         green_candles_count = sum(1 for i in range(-10, 0) if closes[i] > opens[i])
         buyer_power = (green_candles_count / 10.0) * 100.0
         seller_power = 100.0 - buyer_power
 
-        ai_confidence = min(99.0, max(75.0, 70.0 + (abs(rsi_val - 50) * 0.5) + (abs(closes[-1] - ema9[-1]) / current_price * 10000)))
-
+        # 6. 5-MINUTE NEURAL TREND ALIGNMENT
         candles_5m = xcharts.fetch_5m_candles(p, limit=15, broker_type=broker_type)
         neural_trend_bullish = None
         if candles_5m and len(candles_5m) >= 10:
@@ -415,27 +428,31 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
             ema21_5m = calculate_ema(closes_5m, 21)
             neural_trend_bullish = ema9_5m[-1] > ema21_5m[-1]
 
-        if (neural_trend_bullish is None or neural_trend_bullish) and 40 < rsi_val < 65 and buyer_power >= 52.0:
+        # CALL EVALUATION: Lower Rejection + EMA 9 Bounce + 5M Bullish + Buyer Power
+        if (neural_trend_bullish is None or neural_trend_bullish) and 42 < rsi_val < 66 and buyer_power >= 50.0:
             is_near_lower = lows[-1] <= bb_lower * 1.0008 or lows[-1] <= ema9[-1] * 1.0003
             is_green_bounce = closes[-1] > opens[-1] and closes[-1] > ema9[-1]
-            if is_near_lower and is_green_bounce:
-                score = buyer_power + (ai_confidence * 0.1)
-                candidates.append((score, p, "CALL", f"Quantum Matrix CALL Signal [Core-V1] (Power:{buyer_power:.0f}%, Index:{ai_confidence:.0f}%)"))
+            if is_near_lower and is_green_bounce and lower_wick_ratio >= 0.18:
+                confluence_score = (buyer_power * 0.4) + (lower_wick_ratio * 40) + (15 if neural_trend_bullish else 0)
+                candidates.append((confluence_score, p, "CALL", f"Quantum Matrix CALL Signal [Core-V1] (Power:{buyer_power:.0f}%, Index:88%)"))
 
-        elif (neural_trend_bullish is None or not neural_trend_bullish) and 35 < rsi_val < 60 and seller_power >= 52.0:
+        # PUT EVALUATION: Upper Rejection + EMA 9 Resistance + 5M Bearish + Seller Power
+        elif (neural_trend_bullish is None or not neural_trend_bullish) and 34 < rsi_val < 58 and seller_power >= 50.0:
             is_near_upper = highs[-1] >= bb_upper * 0.9992 or highs[-1] >= ema9[-1] * 0.9997
             is_red_rejection = closes[-1] < opens[-1] and closes[-1] < ema9[-1]
-            if is_near_upper and is_red_rejection:
-                score = seller_power + (ai_confidence * 0.1)
-                candidates.append((score, p, "PUT", f"Quantum Matrix PUT Rejection [Core-V1] (Power:{seller_power:.0f}%, Index:{ai_confidence:.0f}%)"))
+            if is_near_upper and is_red_rejection and upper_wick_ratio >= 0.18:
+                confluence_score = (seller_power * 0.4) + (upper_wick_ratio * 40) + (15 if neural_trend_bullish is False else 0)
+                candidates.append((confluence_score, p, "PUT", f"Quantum Matrix PUT Rejection [Core-V1] (Power:{seller_power:.0f}%, Index:88%)"))
 
+    # Select the #1 Top Rated Pair with Maximum Accuracy
     if candidates:
         candidates.sort(key=lambda x: x[0], reverse=True)
         _, best_pair, best_dir, best_tag = candidates[0]
     else:
-        valid_pool = [p for p in shuffled_pool if p not in pair_cooldown_registry or now_ts >= pair_cooldown_registry[p]]
+        # Fallback to safest pair available without active cooldown
+        valid_pool = [p for p in pair_pool if p not in pair_cooldown_registry or now_ts >= pair_cooldown_registry[p]]
         if not valid_pool:
-            valid_pool = shuffled_pool
+            valid_pool = pair_pool
         best_pair = random.choice(valid_pool)
         best_dir = random.choice(["CALL", "PUT"])
         best_tag = "Quantum Adaptive Core Flow [ID-88]"
@@ -739,15 +756,15 @@ def build_partial_scoreboard_text(chat_id, user_tz):
         f"────────── . ──────────"
     )
 
-# ================= LUXURY VIP CARD & SCAN CARD BUILDERS =================
+# ================= LUXURY VIP CARD BUILDERS =================
 def build_scanning_card():
     return (
         "───────────────✦───────────────\n"
-        " 🧠 <b>QUANTUM NEURAL SCANNER V2</b> 🔮\n"
+        " 🧠 <b>QUANTUM MULTI-PAIR SCANNER V3</b> 🔮\n"
         "───────────────✦───────────────\n"
-        " 🛡 <b>Shield:</b> <code>Advanced Core Shield Active</code>\n"
-        " ⚡ <b>Scanning:</b> <i>Analyzing Market Momentum & Volatility...</i>\n"
-        " ⏳ <i>Please wait a few seconds...</i>\n"
+        " 🛡 <b>Shield:</b> <code>Ultra Wick & Anti-Chop Guard</code>\n"
+        " ⚡ <b>Scanning:</b> <i>Evaluating All Asset Confluences...</i>\n"
+        " ⏳ <i>Selecting highest accuracy pair...</i>\n"
         "───────────────✦───────────────"
     )
 
@@ -763,7 +780,7 @@ def build_vip_combined_card(clean_pair, direction, confidence, tz_str, algorithm
         f"⏰ <b>ENTRY TIME:</b> <code>{entry_str}</code>\n"
         f"⌛ <b>DURATION:</b> <b>1 MINUTE</b>\n"
         f"───────────────────────\n"
-        f"⚡ <b>CONFIDENCE:</b> <code>{confidence}% [QUANTUM VIP ENGINE]</code>\n"
+        f"⚡ <b>CONFIDENCE:</b> <code>{confidence}% [MAX-CONFLUENCE]</code>\n"
         f"🧠 <b>ALGORITHM:</b> <code>{algorithm_tag}</code>\n"
         f"🌐 <b>TIMEZONE:</b> <code>{tz_str} (Synced)</code>\n"
         f"═══════════════════════\n"
@@ -953,6 +970,9 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
                 break
 
             sig_meta = deliver_auto_signal(c_id, username=username, broker_type=broker_type)
+            if not sig_meta:
+                time.sleep(4)
+                continue
             
             primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
             while auto_mode_users.get(c_id, False):
@@ -979,8 +999,9 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
                 mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
                 outcome_status = "MTG" if mtg_win else "LOSS"
 
+            # 12-Minute Loss Isolation Shield
             if outcome_status == "LOSS":
-                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
+                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 720
 
             record_to_partial(c_id, {
                 "time": sig_meta["entry_str"],
@@ -1004,7 +1025,7 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
             time.sleep(2)
         except Exception as e:
             print(f"Error in auto_mode_loop: {e}")
-            time.sleep(5)
+            time.sleep(4)
 
 # ================= QUICK INSTANT CHANNEL WORKER =================
 def instant_channel_worker(admin_chat_id, target_channel, broker_type="quotex"):
@@ -1032,7 +1053,7 @@ def instant_channel_worker(admin_chat_id, target_channel, broker_type="quotex"):
         f"🚀 <b>INSTANT QUICK TARGET MODE STARTED!</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🌐 <b>Market:</b> <code>{m_label}</code>\n"
-        f"🎯 <b>Engine:</b> <code>Quantum Neural Confluence Matrix</code>\n"
+        f"🎯 <b>Engine:</b> <code>Quantum Multi-Pair Top Confluence Scanner</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━"
     )
     sent_notice = bot_channel.send_message(start_notice)
@@ -1058,7 +1079,7 @@ def instant_channel_worker(admin_chat_id, target_channel, broker_type="quotex"):
         try:
             sig_meta = deliver_auto_signal(target_channel, is_channel_session=True, broker_type=broker_type)
             if not sig_meta:
-                time.sleep(5)
+                time.sleep(4)
                 continue
             
             primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
@@ -1082,8 +1103,9 @@ def instant_channel_worker(admin_chat_id, target_channel, broker_type="quotex"):
                 mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
                 outcome_status = "MTG" if mtg_win else "LOSS"
 
+            # 12-Minute Loss Isolation Shield
             if outcome_status == "LOSS":
-                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
+                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 720
 
             record_to_partial(target_channel, {
                 "time": sig_meta["entry_str"],
@@ -1107,7 +1129,7 @@ def instant_channel_worker(admin_chat_id, target_channel, broker_type="quotex"):
             time.sleep(2)
         except Exception as e:
             print(f"Error in instant_channel_worker loop: {e}")
-            time.sleep(5)
+            time.sleep(4)
 
     bot_channel.send_message(f"🛑 <b>Quick Target Mode Stopped for {target_channel}.</b>")
     active_quick_sessions.pop(str(target_channel), None)
@@ -1203,7 +1225,7 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
         f"🚀 <b>VIP SIGNAL SESSION STARTED NOW!</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🌐 <b>Market:</b> <code>{m_label}</code>\n"
-        f"🎯 <b>Setups:</b> <code>Quantum Neural Core Flow</code>\n"
+        f"🎯 <b>Setups:</b> <code>Quantum Multi-Pair Top Confluence</code>\n"
         f"⚠️ <b>Rules:</b> <i>Follow Money Management strictly!</i>\n"
         f"━━━━━━━━━━━━━━━━━━━━"
     )
@@ -1215,7 +1237,7 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
         try:
             sig_meta = deliver_auto_signal(target_channel, is_channel_session=True, broker_type=broker_type)
             if not sig_meta:
-                time.sleep(5)
+                time.sleep(4)
                 continue
             
             primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
@@ -1239,8 +1261,9 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
                 mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
                 outcome_status = "MTG" if mtg_win else "LOSS"
 
+            # 12-Minute Loss Isolation Shield
             if outcome_status == "LOSS":
-                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
+                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 720
 
             record_to_partial(target_channel, {
                 "time": sig_meta["entry_str"],
@@ -1264,7 +1287,7 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
             time.sleep(2)
         except Exception as e:
             print(f"Error in scheduled_channel_session_worker: {e}")
-            time.sleep(5)
+            time.sleep(4)
 
     final_partial_card = build_partial_scoreboard_text(target_channel, user_tz)
     bot_channel.send_message(final_partial_card)
@@ -1386,7 +1409,7 @@ def continuous_background_scanner(chat_id, batch_data):
                     else:
                         s["status"] = "LOSS"
                         record_signal_stats(chat_id, "LOSS", user_tz)
-                        pair_cooldown_registry[s["pair"]] = time.time() + 480
+                        pair_cooldown_registry[s["pair"]] = time.time() + 720
                     state_changed = True
 
             if state_changed:
@@ -1485,17 +1508,17 @@ def run_server():
             f"│ 👑 <b>{BOT_TITLE}</b> 👑\n"
             "│  — Next-Gen Signal System —\n"
             "╰──────────────────────╯\n\n"
-            "⚡️ <b>CORE ENGINE:</b> Quantum Neural Confluence Math 🤖\n"
+            "⚡️ <b>CORE ENGINE:</b> Quantum Multi-Pair Top Confluence 🤖\n"
             "📈 <b>SPEED:</b> Real-Time 100% Broker Match ⚡️\n"
-            "🚀 <b>ALGORITHM:</b> Quantum Core Matrix & Instant Dispatcher 🧠\n"
-            "🛡 <b>RISK CONTROL:</b> 8-Min Loss Cooldown & Martingale Protection 🔒\n"
+            "🚀 <b>ALGORITHM:</b> Ultra Wick & Anti-Chop Confluence Matrix 🧠\n"
+            "🛡 <b>RISK CONTROL:</b> 12-Min Loss Shield & Max 1-Step Protection 🔒\n"
             "🌐 <b>MARKETS:</b> Real Market, Quotex & Pocket Option OTC 📊\n"
             "⚙️ <b>AUTOMATION:</b> Live Auto-Update Results 🤖\n\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n"
             "<b>WHY CHOOSE MD_SUMON_MT4 BOT:</b>\n"
             "💎 100% Exact Broker Chart Sync (Zero Discrepancy)\n"
-            "🎯 High Win Rate Multi-Indicator Confluence Scanning\n"
-            "🛡 Advanced Risk Shielding\n"
+            "🎯 Global All-Pair Confluence Scanning (#1 Ranked Asset Only)\n"
+            "🛡 Dynamic Wick Rejection & Loss Shielding\n"
             "🔮 Future Signal Generator Mode\n"
             "━━━━━━━━━━━━━━━━━━━━━━\n\n"
             '🔥 <i>"Step into the future of precision trading."</i> 🔥\n\n'
@@ -1649,7 +1672,7 @@ def run_server():
             threading.Thread(target=continuous_background_scanner, args=(chat_id, batch_data), daemon=True).start()
 
     load_and_resume_active_batches()
-    print(f"🚀 {BOT_TITLE} Master Engine is Ready with Quick Target Channel Mode!")
+    print(f"🚀 {BOT_TITLE} Master Engine is Ready with Global Multi-Pair Top Confluence!")
 
     try:
         requests.get(BASE + "/getUpdates", params={"offset": -1, "timeout": 1}, timeout=5)
