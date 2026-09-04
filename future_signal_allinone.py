@@ -2,12 +2,9 @@
 """
 👑 MD SUMON TRADING BOT — QUANTUM NEURAL & ADAPTIVE CHOP-FILTER VIP ENGINE
 - Pure Quantum Analysis & Neural Trend Directional Flow
-- Instant Non-Stop Signal Dispatcher & Quick Target Channel Mode
+- Single-Instance Concurrency Lock (Prevents Duplicate Messages)
+- Instant Quick Target Channel Mode & Non-Stop Dispatcher
 - Bollinger Band Upper/Lower Rejection + EMA 9 Pullback & Bounce Logic
-- Advanced Multi-Indicator Confluence Scoring & Noise Filter
-- Adaptive Choppy & Ranging Market Noise Filter (Prevents Late-Session Losses)
-- Multi-Timeframe Neural Alignment (5-Min & 1-Min)
-- Stealth VIP Schedule & Automated Multi-Broker Sync
 """
 
 import os
@@ -24,6 +21,20 @@ from datetime import datetime, timedelta, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 warnings.filterwarnings("ignore", category=UserWarning)
+
+# ================= SINGLE INSTANCE LOCK (PREVENTS DOUBLE MESSAGES) =================
+LOCK_FILE = "bot_running.lock"
+if os.path.exists(LOCK_FILE):
+    try:
+        with open(LOCK_FILE, "r") as f:
+            old_pid = int(f.read().strip())
+        os.kill(old_pid, 0) # Check if old process exists
+        print(f"⚠️ Warning: Another instance (PID {old_pid}) is already running. Terminating old or exiting...")
+    except Exception:
+        pass
+
+with open(LOCK_FILE, "w") as f:
+    f.write(str(os.getpid()))
 
 # ================= RENDER KEEP-ALIVE SERVER =================
 class RenderHealthServer(BaseHTTPRequestHandler):
@@ -331,10 +342,6 @@ def calculate_ema(values, period):
     return ema
 
 def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
-    """
-    Advanced Core Multi-Indicator Signal Matrix (Fully Masked Display Tags):
-    Logic remains 100% active and accurate.
-    """
     now_ts = time.time()
     chat_key = str(chat_id) if chat_id else "global"
     recent_pairs = recent_pair_history.get(chat_key, [])
@@ -343,7 +350,6 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
     random.shuffle(shuffled_pool)
 
     best_pair = None
-    best_score = -999.0
     best_dir = "CALL"
     best_tag = "Quantum Core Momentum & Trend Flow [ID-99]"
 
@@ -366,7 +372,6 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         highs = [float(c["high"]) for c in recent_candles]
         lows = [float(c["low"]) for c in recent_candles]
 
-        # ================= ADAPTIVE CHOPPY & RANGING MARKET FILTER =================
         recent_bodies = [abs(closes[i] - opens[i]) for i in range(-5, 0)]
         recent_ranges = [highs[i] - lows[i] for i in range(-5, 0)]
         avg_body = sum(recent_bodies) / len(recent_bodies)
@@ -374,9 +379,7 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         
         if avg_range > 0 and (avg_body / avg_range) < 0.28:
             continue
-        # =========================================================================
 
-        # Doji & Tiny Body Rejection Filter
         candle_range = highs[-1] - lows[-1]
         candle_body = abs(closes[-1] - opens[-1])
         if candle_range <= 0 or (candle_body / candle_range) < 0.22:
@@ -389,7 +392,6 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         if current_price <= 0:
             continue
 
-        # Bollinger Bands & Volatility Calculation
         sma20 = sum(closes[-20:]) / 20
         variance = sum([(x - sma20) ** 2 for x in closes[-20:]]) / 20
         std_dev = variance ** 0.5
@@ -400,14 +402,12 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
         if band_width < 0.0002:
             continue
 
-        # Power & Confidence Metrics (Masked Names)
         green_candles_count = sum(1 for i in range(-10, 0) if closes[i] > opens[i])
         buyer_power = (green_candles_count / 10.0) * 100.0
         seller_power = 100.0 - buyer_power
 
         ai_confidence = min(99.0, max(75.0, 70.0 + (abs(rsi_val - 50) * 0.5) + (abs(closes[-1] - ema9[-1]) / current_price * 10000)))
 
-        # 5-Minute Neural Trend Alignment
         candles_5m = xcharts.fetch_5m_candles(p, limit=15, broker_type=broker_type)
         neural_trend_bullish = None
         if candles_5m and len(candles_5m) >= 10:
@@ -416,7 +416,6 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
             ema21_5m = calculate_ema(closes_5m, 21)
             neural_trend_bullish = ema9_5m[-1] > ema21_5m[-1]
 
-        # CALL Setup (Masked Tag Display)
         if (neural_trend_bullish is None or neural_trend_bullish) and 40 < rsi_val < 65 and buyer_power >= 52.0:
             is_near_lower = lows[-1] <= bb_lower * 1.0008 or lows[-1] <= ema9[-1] * 1.0003
             is_green_bounce = closes[-1] > opens[-1] and closes[-1] > ema9[-1]
@@ -424,7 +423,6 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
                 score = buyer_power + (ai_confidence * 0.1)
                 candidates.append((score, p, "CALL", f"Quantum Matrix CALL Signal [Core-V1] (Power:{buyer_power:.0f}%, Index:{ai_confidence:.0f}%)"))
 
-        # PUT Setup (Masked Tag Display)
         elif (neural_trend_bullish is None or not neural_trend_bullish) and 35 < rsi_val < 60 and seller_power >= 52.0:
             is_near_upper = highs[-1] >= bb_upper * 0.9992 or highs[-1] >= ema9[-1] * 0.9997
             is_red_rejection = closes[-1] < opens[-1] and closes[-1] < ema9[-1]
@@ -434,7 +432,7 @@ def analyze_best_pair_and_trend(pair_pool, broker_type="quotex", chat_id=None):
 
     if candidates:
         candidates.sort(key=lambda x: x[0], reverse=True)
-        best_score, best_pair, best_dir, best_tag = candidates[0]
+        _, best_pair, best_dir, best_tag = candidates[0]
     else:
         valid_pool = [p for p in shuffled_pool if p not in pair_cooldown_registry or now_ts >= pair_cooldown_registry[p]]
         if not valid_pool:
@@ -742,7 +740,7 @@ def build_partial_scoreboard_text(chat_id, user_tz):
         f"────────── . ──────────"
     )
 
-# ================= LUXURY VIP CARD & SCAN CARD BUILDERS (MASKED TEXTS) =================
+# ================= LUXURY VIP CARD & SCAN CARD BUILDERS =================
 def build_scanning_card():
     return (
         "───────────────✦───────────────\n"
@@ -890,7 +888,6 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
     else:
         market_label = "QUOTEX OTC"
 
-    dir_label = "BUY" if direction == "CALL" else "SELL"
     dir_action = "CALL" if direction == "CALL" else "PUT"
     entry_str = entry_dt.strftime("%H:%M")
     
@@ -925,7 +922,6 @@ def deliver_auto_signal(chat_id, pair=None, username=None, is_channel_session=Fa
         "pair_raw": selected_pair,
         "pair_display": clean_pair,
         "direction": direction,
-        "dir_label": dir_label,
         "dir_action": dir_action,
         "tz_str": tz_str,
         "broker_type": broker_type,
@@ -1447,7 +1443,7 @@ def run_server():
         ]
 
         if can_schedule:
-            keyboard_buttons.append([{"text": "⏱ SCHEDULE MODE", "callback_data": "menu:schedule_hub"}])
+            keyboard_buttons.append([{"text": "⏱ SCHEDULE & QUICK HUB", "callback_data": "menu:schedule_hub"}])
 
         keyboard_buttons.extend([
             [
@@ -1634,6 +1630,12 @@ def run_server():
 
     load_and_resume_active_batches()
     print(f"🚀 {BOT_TITLE} Master Engine is Ready with Quick Target Channel Mode!")
+
+    # Clear pending backlog updates to prevent double triggering on start
+    try:
+        requests.get(BASE + "/getUpdates", params={"offset": -1, "timeout": 1}, timeout=5)
+    except Exception:
+        pass
 
     offset = None
     while True:
