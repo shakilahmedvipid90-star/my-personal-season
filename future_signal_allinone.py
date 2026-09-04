@@ -54,7 +54,7 @@ def start_background_web_server():
 threading.Thread(target=start_background_web_server, daemon=True).start()
 
 # ================= CONFIGURATION =================
-TELEGRAM_BOT_TOKEN = 8978217705:AAHkmibkUrAvnOMBGfplq_z_lMcPjpnzQBA"
+TELEGRAM_BOT_TOKEN = "8978217705:AAHkmibkUrAvnOMBGfplq_z_lMcPjpnzQBA"
 ADMIN_CHAT_ID = "7170071838"
 DEFAULT_TZ_OFFSET = 4  # UTC+4
 TELEGRAM_HANDLE = "@MD_SUMON_MT4"
