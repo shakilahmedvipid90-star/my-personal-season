@@ -3,7 +3,7 @@
 👑 MD SUMON TRADING BOT — QUANTUM NEURAL & ADAPTIVE CHOP-FILTER VIP ENGINE
 - Pure Quantum Analysis & Neural Trend Directional Flow
 - Single-Instance Concurrency Lock (Prevents Duplicate Messages)
-- Instant Quick Target Channel Mode & Non-Stop Dispatcher
+- Instant Quick Target Channel Mode & Bulletproof Result Evaluator
 - Bollinger Band Upper/Lower Rejection + EMA 9 Pullback & Bounce Logic
 """
 
@@ -28,8 +28,7 @@ if os.path.exists(LOCK_FILE):
     try:
         with open(LOCK_FILE, "r") as f:
             old_pid = int(f.read().strip())
-        os.kill(old_pid, 0) # Check if old process exists
-        print(f"⚠️ Warning: Another instance (PID {old_pid}) is already running. Terminating old or exiting...")
+        os.kill(old_pid, 0)
     except Exception:
         pass
 
@@ -934,74 +933,78 @@ def auto_mode_loop(chat_id, username=None, broker_type="quotex"):
     bot_instance = TelegramBot(chat_id=c_id)
     
     while auto_mode_users.get(c_id, False):
-        if is_maintenance_active() and c_id != str(ADMIN_CHAT_ID):
-            auto_mode_users[c_id] = False
-            bot_instance.send_message(build_maintenance_card())
-            break
-
-        is_vip = is_vip_user(c_id, username)
-        used_today = get_user_daily_usage(c_id, user_tz)
-        if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
-            auto_mode_users[c_id] = False
-            kb = {
-                "inline_keyboard": [
-                    [{"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
-                    [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
-                ]
-            }
-            bot_instance.send_message(build_limit_exceeded_card(), reply_markup=kb)
-            break
-
-        sig_meta = deliver_auto_signal(c_id, username=username, broker_type=broker_type)
-        
-        primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
-        while auto_mode_users.get(c_id, False):
-            if datetime.now(user_tz) >= primary_settle_dt:
+        try:
+            if is_maintenance_active() and c_id != str(ADMIN_CHAT_ID):
+                auto_mode_users[c_id] = False
+                bot_instance.send_message(build_maintenance_card())
                 break
-            time.sleep(1)
-            
-        if not auto_mode_users.get(c_id, False):
-            break
 
-        primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
-        if primary_win:
-            outcome_status = "WIN"
-        else:
-            mtg_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=2, seconds=7)
+            is_vip = is_vip_user(c_id, username)
+            used_today = get_user_daily_usage(c_id, user_tz)
+            if not is_vip and used_today >= FREE_DAILY_AUTO_LIMIT:
+                auto_mode_users[c_id] = False
+                kb = {
+                    "inline_keyboard": [
+                        [{"text": "👑 GET VIP ACCESS ↗️", "url": "https://t.me/MD_SUMON_MT4"}],
+                        [{"text": "🏠 HOME", "callback_data": "back_to_menu"}]
+                    ]
+                }
+                bot_instance.send_message(build_limit_exceeded_card(), reply_markup=kb)
+                break
+
+            sig_meta = deliver_auto_signal(c_id, username=username, broker_type=broker_type)
+            
+            primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
             while auto_mode_users.get(c_id, False):
-                if datetime.now(user_tz) >= mtg_settle_dt:
+                if datetime.now(user_tz) >= primary_settle_dt:
                     break
                 time.sleep(1)
                 
             if not auto_mode_users.get(c_id, False):
                 break
-                
-            mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
-            outcome_status = "MTG" if mtg_win else "LOSS"
 
-        if outcome_status == "LOSS":
-            pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
+            primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
+            if primary_win:
+                outcome_status = "WIN"
+            else:
+                mtg_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=2, seconds=7)
+                while auto_mode_users.get(c_id, False):
+                    if datetime.now(user_tz) >= mtg_settle_dt:
+                        break
+                    time.sleep(1)
+                    
+                if not auto_mode_users.get(c_id, False):
+                    break
+                    
+                mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
+                outcome_status = "MTG" if mtg_win else "LOSS"
 
-        record_to_partial(c_id, {
-            "time": sig_meta["entry_str"],
-            "pair": format_pair_name(sig_meta["pair_raw"], broker_type=broker_type),
-            "dir": sig_meta["direction"],
-            "result": "✅" if outcome_status in ["WIN", "MTG"] else "❌"
-        })
-        record_signal_stats(c_id, outcome_status, user_tz)
-        wins, losses, win_rate = get_session_stats(c_id)
+            if outcome_status == "LOSS":
+                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
 
-        res_card = build_golden_trophy_result_card(
-            sig_meta["pair_display"], 
-            sig_meta["dir_action"], 
-            outcome_status, 
-            wins, 
-            losses, 
-            win_rate,
-            market_label=sig_meta.get("market_label", "QUOTEX OTC")
-        )
-        bot_instance.send_message(res_card)
-        time.sleep(2)
+            record_to_partial(c_id, {
+                "time": sig_meta["entry_str"],
+                "pair": format_pair_name(sig_meta["pair_raw"], broker_type=broker_type),
+                "dir": sig_meta["direction"],
+                "result": "✅" if outcome_status in ["WIN", "MTG"] else "❌"
+            })
+            record_signal_stats(c_id, outcome_status, user_tz)
+            wins, losses, win_rate = get_session_stats(c_id)
+
+            res_card = build_golden_trophy_result_card(
+                sig_meta["pair_display"], 
+                sig_meta["dir_action"], 
+                outcome_status, 
+                wins, 
+                losses, 
+                win_rate,
+                market_label=sig_meta.get("market_label", "QUOTEX OTC")
+            )
+            bot_instance.send_message(res_card)
+            time.sleep(2)
+        except Exception as e:
+            print(f"Error in auto_mode_loop: {e}")
+            time.sleep(5)
 
 # ================= QUICK INSTANT CHANNEL WORKER =================
 def instant_channel_worker(admin_chat_id, target_channel, broker_type="quotex"):
@@ -1052,52 +1055,59 @@ def instant_channel_worker(admin_chat_id, target_channel, broker_type="quotex"):
     user_partial_data[str(target_channel)] = []
 
     while session_info["is_running"]:
-        sig_meta = deliver_auto_signal(target_channel, is_channel_session=True, broker_type=broker_type)
-        
-        primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
-        while datetime.now(user_tz) < primary_settle_dt and session_info["is_running"]:
-            time.sleep(1)
+        try:
+            sig_meta = deliver_auto_signal(target_channel, is_channel_session=True, broker_type=broker_type)
+            if not sig_meta:
+                time.sleep(5)
+                continue
             
-        if not session_info["is_running"]:
-            break
-
-        primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
-        if primary_win:
-            outcome_status = "WIN"
-        else:
-            mtg_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=2, seconds=7)
-            while datetime.now(user_tz) < mtg_settle_dt and session_info["is_running"]:
+            primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
+            while datetime.now(user_tz) < primary_settle_dt and session_info["is_running"]:
                 time.sleep(1)
                 
             if not session_info["is_running"]:
                 break
 
-            mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
-            outcome_status = "MTG" if mtg_win else "LOSS"
+            primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
+            if primary_win:
+                outcome_status = "WIN"
+            else:
+                mtg_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=2, seconds=7)
+                while datetime.now(user_tz) < mtg_settle_dt and session_info["is_running"]:
+                    time.sleep(1)
+                    
+                if not session_info["is_running"]:
+                    break
 
-        if outcome_status == "LOSS":
-            pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
+                mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
+                outcome_status = "MTG" if mtg_win else "LOSS"
 
-        record_to_partial(target_channel, {
-            "time": sig_meta["entry_str"],
-            "pair": format_pair_name(sig_meta["pair_raw"], broker_type=broker_type),
-            "dir": sig_meta["direction"],
-            "result": "✅" if outcome_status in ["WIN", "MTG"] else "❌"
-        })
-        record_signal_stats(target_channel, outcome_status, user_tz)
-        wins, losses, win_rate = get_session_stats(target_channel)
+            if outcome_status == "LOSS":
+                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
 
-        res_card = build_golden_trophy_result_card(
-            sig_meta["pair_display"], 
-            sig_meta["dir_action"], 
-            outcome_status, 
-            wins, 
-            losses, 
-            win_rate,
-            market_label=sig_meta.get("market_label", m_label)
-        )
-        bot_channel.send_message(res_card)
-        time.sleep(2)
+            record_to_partial(target_channel, {
+                "time": sig_meta["entry_str"],
+                "pair": format_pair_name(sig_meta["pair_raw"], broker_type=broker_type),
+                "dir": sig_meta["direction"],
+                "result": "✅" if outcome_status in ["WIN", "MTG"] else "❌"
+            })
+            record_signal_stats(target_channel, outcome_status, user_tz)
+            wins, losses, win_rate = get_session_stats(target_channel)
+
+            res_card = build_golden_trophy_result_card(
+                sig_meta["pair_display"], 
+                sig_meta["dir_action"], 
+                outcome_status, 
+                wins, 
+                losses, 
+                win_rate,
+                market_label=sig_meta.get("market_label", m_label)
+            )
+            bot_channel.send_message(res_card)
+            time.sleep(2)
+        except Exception as e:
+            print(f"Error in instant_channel_worker loop: {e}")
+            time.sleep(5)
 
     bot_channel.send_message(f"🛑 <b>Quick Target Mode Stopped for {target_channel}.</b>")
     active_quick_sessions.pop(str(target_channel), None)
@@ -1202,52 +1212,59 @@ def scheduled_channel_session_worker(admin_chat_id, target_channel, start_dt, en
     user_partial_data[str(target_channel)] = []
     
     while datetime.now(user_tz) < end_dt and session_info["is_running"]:
-        sig_meta = deliver_auto_signal(target_channel, is_channel_session=True, broker_type=broker_type)
-        
-        primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
-        while datetime.now(user_tz) < primary_settle_dt and datetime.now(user_tz) < end_dt and session_info["is_running"]:
-            time.sleep(1)
+        try:
+            sig_meta = deliver_auto_signal(target_channel, is_channel_session=True, broker_type=broker_type)
+            if not sig_meta:
+                time.sleep(5)
+                continue
             
-        if not session_info["is_running"]:
-            break
-
-        primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
-        if primary_win:
-            outcome_status = "WIN"
-        else:
-            mtg_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=2, seconds=7)
-            while datetime.now(user_tz) < mtg_settle_dt and datetime.now(user_tz) < end_dt and session_info["is_running"]:
+            primary_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=1, seconds=7)
+            while datetime.now(user_tz) < primary_settle_dt and datetime.now(user_tz) < end_dt and session_info["is_running"]:
                 time.sleep(1)
                 
             if not session_info["is_running"]:
                 break
 
-            mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
-            outcome_status = "MTG" if mtg_win else "LOSS"
+            primary_win = evaluate_primary_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
+            if primary_win:
+                outcome_status = "WIN"
+            else:
+                mtg_settle_dt = sig_meta["entry_dt"] + timedelta(minutes=2, seconds=7)
+                while datetime.now(user_tz) < mtg_settle_dt and datetime.now(user_tz) < end_dt and session_info["is_running"]:
+                    time.sleep(1)
+                    
+                if not session_info["is_running"]:
+                    break
 
-        if outcome_status == "LOSS":
-            pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
+                mtg_win = evaluate_mtg_candle(sig_meta["pair_raw"], sig_meta["entry_dt"], sig_meta["direction"], broker_type=broker_type)
+                outcome_status = "MTG" if mtg_win else "LOSS"
 
-        record_to_partial(target_channel, {
-            "time": sig_meta["entry_str"],
-            "pair": format_pair_name(sig_meta["pair_raw"], broker_type=broker_type),
-            "dir": sig_meta["direction"],
-            "result": "✅" if outcome_status in ["WIN", "MTG"] else "❌"
-        })
-        record_signal_stats(target_channel, outcome_status, user_tz)
-        wins, losses, win_rate = get_session_stats(target_channel)
+            if outcome_status == "LOSS":
+                pair_cooldown_registry[sig_meta["pair_raw"]] = time.time() + 480
 
-        res_card = build_golden_trophy_result_card(
-            sig_meta["pair_display"], 
-            sig_meta["dir_action"], 
-            outcome_status, 
-            wins, 
-            losses, 
-            win_rate,
-            market_label=sig_meta.get("market_label", m_label)
-        )
-        bot_channel.send_message(res_card)
-        time.sleep(2)
+            record_to_partial(target_channel, {
+                "time": sig_meta["entry_str"],
+                "pair": format_pair_name(sig_meta["pair_raw"], broker_type=broker_type),
+                "dir": sig_meta["direction"],
+                "result": "✅" if outcome_status in ["WIN", "MTG"] else "❌"
+            })
+            record_signal_stats(target_channel, outcome_status, user_tz)
+            wins, losses, win_rate = get_session_stats(target_channel)
+
+            res_card = build_golden_trophy_result_card(
+                sig_meta["pair_display"], 
+                sig_meta["dir_action"], 
+                outcome_status, 
+                wins, 
+                losses, 
+                win_rate,
+                market_label=sig_meta.get("market_label", m_label)
+            )
+            bot_channel.send_message(res_card)
+            time.sleep(2)
+        except Exception as e:
+            print(f"Error in scheduled_channel_session_worker: {e}")
+            time.sleep(5)
 
     final_partial_card = build_partial_scoreboard_text(target_channel, user_tz)
     bot_channel.send_message(final_partial_card)
@@ -1334,56 +1351,59 @@ def continuous_background_scanner(chat_id, batch_data):
     bot_instance = TelegramBot(chat_id=chat_id)
 
     while True:
-        if is_maintenance_active() and str(chat_id) != str(ADMIN_CHAT_ID):
-            break
+        try:
+            if is_maintenance_active() and str(chat_id) != str(ADMIN_CHAT_ID):
+                break
 
-        now_time = datetime.now(user_tz)
-        has_pending = False
-        state_changed = False
+            now_time = datetime.now(user_tz)
+            has_pending = False
+            state_changed = False
 
-        for s in signals:
-            current_status = s.get("status", "PENDING")
-            if current_status in ["WIN", "MTG", "LOSS"]:
-                continue
-            
-            has_pending = True
+            for s in signals:
+                current_status = s.get("status", "PENDING")
+                if current_status in ["WIN", "MTG", "LOSS"]:
+                    continue
+                
+                has_pending = True
 
-            if current_status == "PENDING" and now_time >= s["target_dt"]:
-                if now_time < (s["target_dt"] + timedelta(minutes=1, seconds=7)):
-                    s["status"] = "LIVE"
+                if current_status == "PENDING" and now_time >= s["target_dt"]:
+                    if now_time < (s["target_dt"] + timedelta(minutes=1, seconds=7)):
+                        s["status"] = "LIVE"
+                        state_changed = True
+
+                if s.get("status") in ["PENDING", "LIVE"] and now_time >= (s["target_dt"] + timedelta(minutes=1, seconds=7)):
+                    if evaluate_primary_candle(s["pair"], s["target_dt"], s["direction"], broker_type=broker_type):
+                        s["status"] = "WIN"
+                        record_signal_stats(chat_id, "WIN", user_tz)
+                    else:
+                        s["status"] = "IN_MTG"
                     state_changed = True
 
-            if s.get("status") in ["PENDING", "LIVE"] and now_time >= (s["target_dt"] + timedelta(minutes=1, seconds=7)):
-                if evaluate_primary_candle(s["pair"], s["target_dt"], s["direction"], broker_type=broker_type):
-                    s["status"] = "WIN"
-                    record_signal_stats(chat_id, "WIN", user_tz)
-                else:
-                    s["status"] = "IN_MTG"
-                state_changed = True
+                if s.get("status") == "IN_MTG" and now_time >= (s["target_dt"] + timedelta(minutes=2, seconds=7)):
+                    if evaluate_mtg_candle(s["pair"], s["target_dt"], s["direction"], broker_type=broker_type):
+                        s["status"] = "MTG"
+                        record_signal_stats(chat_id, "MTG", user_tz)
+                    else:
+                        s["status"] = "LOSS"
+                        record_signal_stats(chat_id, "LOSS", user_tz)
+                        pair_cooldown_registry[s["pair"]] = time.time() + 480
+                    state_changed = True
 
-            if s.get("status") == "IN_MTG" and now_time >= (s["target_dt"] + timedelta(minutes=2, seconds=7)):
-                if evaluate_mtg_candle(s["pair"], s["target_dt"], s["direction"], broker_type=broker_type):
-                    s["status"] = "MTG"
-                    record_signal_stats(chat_id, "MTG", user_tz)
-                else:
-                    s["status"] = "LOSS"
-                    record_signal_stats(chat_id, "LOSS", user_tz)
-                    pair_cooldown_registry[s["pair"]] = time.time() + 480
-                state_changed = True
+            if state_changed:
+                save_active_batches_to_disk()
+                updated_text = build_exact_user_format(signals, broker, user_tz, tz_offset)
+                bot_instance.edit_message(msg_id, updated_text, reply_markup={
+                    "inline_keyboard": [
+                        [{"text": "💥 REFRESH NOW", "callback_data": "btn:refresh"}, {"text": "🔮 GENERATE NEW LIST", "callback_data": "btn:gen_new"}],
+                        [{"text": "🗑 DELETE", "callback_data": "btn:del_list"}, {"text": "🏠 HOME", "callback_data": "back_to_menu"}]
+                    ]
+                })
 
-        if state_changed:
-            save_active_batches_to_disk()
-            updated_text = build_exact_user_format(signals, broker, user_tz, tz_offset)
-            bot_instance.edit_message(msg_id, updated_text, reply_markup={
-                "inline_keyboard": [
-                    [{"text": "💥 REFRESH NOW", "callback_data": "btn:refresh"}, {"text": "🔮 GENERATE NEW LIST", "callback_data": "btn:gen_new"}],
-                    [{"text": "🗑 DELETE", "callback_data": "btn:del_list"}, {"text": "🏠 HOME", "callback_data": "back_to_menu"}]
-                ]
-            })
-
-        if not has_pending:
-            save_active_batches_to_disk()
-            break
+            if not has_pending:
+                save_active_batches_to_disk()
+                break
+        except Exception as e:
+            print(f"Error in continuous_background_scanner: {e}")
         
         time.sleep(2)
 
@@ -1631,7 +1651,6 @@ def run_server():
     load_and_resume_active_batches()
     print(f"🚀 {BOT_TITLE} Master Engine is Ready with Quick Target Channel Mode!")
 
-    # Clear pending backlog updates to prevent double triggering on start
     try:
         requests.get(BASE + "/getUpdates", params={"offset": -1, "timeout": 1}, timeout=5)
     except Exception:
